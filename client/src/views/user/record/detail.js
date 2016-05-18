@@ -57,11 +57,6 @@ Espo.define('views/user/record/detail', 'views/record/detail', function (Dep) {
                 }
             }
 
-            if (this.model.get('isPortalUser')) {
-                this.hidePanel('activities');
-                this.hidePanel('history');
-            }
-
             if (this.model.id == this.getUser().id) {
                 this.listenTo(this.model, 'after:save', function () {
                     this.getUser().set(this.model.toJSON());
@@ -167,7 +162,38 @@ Espo.define('views/user/record/detail', 'views/record/detail', function (Dep) {
                     view.render();
                 }.bind(this));
             }.bind(this));
-        }
+        },
+
+        getGridLayout: function (callback) {
+            this._helper.layoutManager.get(this.model.name, this.options.layoutName || this.layoutName, function (simpleLayout) {
+                var layout = Espo.Utils.cloneDeep(simpleLayout);
+
+                layout.push({
+                    "label": "Teams and Access Control",
+                    "name": "accessControl",
+                    "rows": [
+                        [{"name":"isActive"}, {"name":"isAdmin"}],
+                        [{"name":"teams"}, {"name":"isPortalUser"}],
+                        [{"name":"roles"}, {"name":"defaultTeam"}]
+                    ]
+                });
+                layout.push({
+                    "label": "Portal",
+                    "name": "portal",
+                    "rows": [
+                        [{"name":"portals"}, {"name":"contact"}],
+                        [{"name":"portalRoles"}, {"name":"accounts"}]
+                    ]
+                });
+
+                var gridLayout = {
+                    type: 'record',
+                    layout: this.convertDetailLayout(layout),
+                };
+
+                callback(gridLayout);
+            }.bind(this));
+        },
 
     });
 
