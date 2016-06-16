@@ -394,33 +394,35 @@ class Util
             $unsets = (array) $unsets;
         }
 
-        foreach($unsets as $rootKey => $unsetItem){
+        foreach ($unsets as $rootKey => $unsetItem) {
             $unsetItem = is_array($unsetItem) ? $unsetItem : (array) $unsetItem;
 
-            foreach($unsetItem as $unsetSett){
-                if (!empty($unsetSett)){
-                    $keyItems = explode('.', $unsetSett);
-                    $currVal = isset($content[$rootKey]) ? "\$content['{$rootKey}']" : "\$content";
+            foreach ($unsetItem as $unsetString) {
+                if (is_string($rootKey)) {
+                    $unsetString = $rootKey . '.' . $unsetString;
+                }
 
-                    $lastKey = array_pop($keyItems);
-                    foreach($keyItems as $keyItem){
-                        $currVal .= "['{$keyItem}']";
-                    }
+                $keyСhain = explode('.', $unsetString);
+                $keyChainCount = count($keyСhain) - 1;
 
-                    $unsetElem = $currVal . "['{$lastKey}']";
+                $elem = & $content;
+                for ($i = 0; $i <= $keyChainCount; $i++) {
 
-                    $evalString = "
-                    if (isset({$unsetElem}) || ( is_array({$currVal}) && array_key_exists('{$lastKey}', {$currVal}) )) {
-                        unset({$unsetElem});
-                    } ";
-                    eval($evalString);
+                    if (is_array($elem) && array_key_exists($keyСhain[$i], $elem)) {
 
-                    if ($unsetParentEmptyArray) {
-                        $evalString = "
-                        if (is_array({$currVal}) && empty({$currVal})) {
-                            unset({$currVal});
-                        } ";
-                        eval($evalString);
+                        if ($i == $keyChainCount) {
+
+                            unset($elem[$keyСhain[$i]]);
+
+                            if ($unsetParentEmptyArray && is_array($elem) && empty($elem)) {
+                                unset($keyСhain[$i]);
+                                $content = static::unsetInArray($content, implode('.', $keyСhain), false);
+                            }
+
+                        } else if (is_array($elem[$keyСhain[$i]])) {
+                            $elem = & $elem[$keyСhain[$i]];
+                        }
+
                     }
                 }
             }

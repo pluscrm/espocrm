@@ -32,6 +32,7 @@ return array (
         'driver' => 'pdo_mysql',
         'host' => 'localhost',
         'port' => '',
+        'charset' => 'utf8',
         'dbname' => '',
         'user' => '',
         'password' => '',
@@ -95,7 +96,6 @@ return array (
     ),
     "tabList" => ["Account", "Contact", "Lead", "Opportunity", "Calendar", "Meeting", "Call", "Task", "Case", "Email", "Document", "Campaign", "KnowledgeBaseArticle"],
     "quickCreateList" => ["Account", "Contact", "Lead", "Opportunity", "Meeting", "Call", "Task", "Case", "Email"],
-    'calendarDefaultEntity' => 'Meeting',
     'exportDisabled' => false,
     'assignmentEmailNotifications' => false,
     'assignmentEmailNotificationsEntityList' => ['Lead', 'Opportunity', 'Task', 'Case'],
@@ -147,6 +147,7 @@ return array (
             ]
         ]
     ],
+    "calendarEntityList" => ["Meeting", "Call", "Task"],
     'isInstalled' => false
 );
 

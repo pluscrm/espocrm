@@ -618,7 +618,7 @@ class Record extends \Espo\Core\Services\Base
     {
     }
 
-    protected function afterMassUpdate(array $idList, array $data)
+    protected function afterMassUpdate(array $idList, array $data = array())
     {
     }
 
@@ -986,6 +986,7 @@ class Record extends \Espo\Core\Services\Base
             $p = array();
             $p['where'] = $where;
             $selectParams = $this->getSelectParams($p);
+            $skipTextColumns['skipTextColumns'] = true;
             $collection = $repository->find($selectParams);
 
             foreach ($collection as $entity) {
@@ -997,7 +998,7 @@ class Record extends \Espo\Core\Services\Base
                 }
             }
 
-            $this->afterMassUpdate($idsRemoved);
+            $this->afterMassRemove($idsRemoved);
 
             return array(
                 'count' => $count

@@ -840,6 +840,14 @@ body > footer > p a:visited {
     margin-bottom: -2px;
 }
 
+.stream-head-container .internal-badge {
+    position: absolute; top: 34px; left: 19px;
+}
+
+.stream-head-container .internal-badge > span {
+    color: @brand-danger;
+}
+
 img.avatar.avatar-link {
     display: inline-block;
     margin-top: -2px;
@@ -1017,6 +1025,18 @@ h5 {
     font-weight: bold;
     margin-top: 9px;
     margin-bottom: 9px;
+}
+
+.post-container .internal-mode-switcher {
+    color: @gray-light;
+    margin-left: 10px;
+    display: inline-block;
+    position: relative;
+    top: 2px;
+}
+
+.post-container .internal-mode-switcher.enabled {
+    color: @link-color;
 }
 
 @media screen and (min-width: @screen-sm-min) {
