@@ -69,6 +69,7 @@ return array (
         'es_ES',
         'fr_FR',
         'id_ID',
+        'it_IT',
         'nl_NL',
         'tr_TR',
         'ro_RO',
@@ -96,11 +97,12 @@ return array (
     ),
     "tabList" => ["Account", "Contact", "Lead", "Opportunity", "Calendar", "Meeting", "Call", "Task", "Case", "Email", "Document", "Campaign", "KnowledgeBaseArticle"],
     "quickCreateList" => ["Account", "Contact", "Lead", "Opportunity", "Meeting", "Call", "Task", "Case", "Email"],
-    'calendarDefaultEntity' => 'Meeting',
     'exportDisabled' => false,
     'assignmentEmailNotifications' => false,
     'assignmentEmailNotificationsEntityList' => ['Lead', 'Opportunity', 'Task', 'Case'],
     'assignmentNotificationsEntityList' => ['Meeting', 'Call', 'Task', 'Email'],
+    "portalStreamEmailNotifications" => true,
+    'streamEmailNotificationsEntityList' => ['Case'],
     'emailMessageMaxSize' => 10,
     'notificationsCheckInterval' => 10,
     'disabledCountQueryEntityList' => ['Email'],
@@ -148,6 +150,7 @@ return array (
             ]
         ]
     ],
-    'isInstalled' => false
+    "calendarEntityList" => ["Meeting", "Call", "Task"],
+    'isInstalled' => false,
 );
 

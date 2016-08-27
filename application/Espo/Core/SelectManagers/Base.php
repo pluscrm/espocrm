@@ -77,6 +77,11 @@ class Base
         return $this->entityManager;
     }
 
+    protected function getMetadata()
+    {
+        return $this->metadata;
+    }
+
     protected function getUser()
     {
         return $this->user;
@@ -117,18 +122,30 @@ class Base
         }
     }
 
-    protected function order($sortBy, $asc, &$result)
+    protected function order($sortBy, $desc = false, &$result)
     {
         if (!empty($sortBy)) {
             $result['orderBy'] = $sortBy;
-            $type = $this->metadata->get("entityDefs.{$this->entityType}.fields." . $result['orderBy'] . ".type");
-            if ($type == 'link') {
+            $type = $this->getMetadata()->get(['entityDefs', $this->getEntityType(), 'fields', $sortBy, 'type']);
+            if ($type === 'link') {
                 $result['orderBy'] .= 'Name';
-            } else if ($type == 'linkParent') {
+            } else if ($type === 'linkParent') {
                 $result['orderBy'] .= 'Type';
+            } else if ($type === 'enum') {
+                $list = $this->getMetadata()->get(['entityDefs', $this->getEntityType(), 'fields', $sortBy, 'options']);
+                if ($list && is_array($list) && count($list)) {
+                    if ($this->getMetadata()->get(['entityDefs', $this->getEntityType(), 'fields', $sortBy, 'isSorted'])) {
+                        $list = asort($list);
+                    }
+                    if ($desc) {
+                        $list = array_reverse($list);
+                    }
+                    $result['orderBy'] = 'LIST:' . $sortBy . ':' . implode(',', $list);
+                    return;
+                }
             }
         }
-        if ($asc) {
+        if (!$desc) {
             $result['order'] = 'ASC';
         } else {
             $result['order'] = 'DESC';
@@ -137,7 +154,7 @@ class Base
 
     protected function getTextFilterFieldList()
     {
-        return $this->metadata->get("entityDefs.{$this->entityType}.collection.textFilterFields", ['name']);
+        return $this->getMetadata()->get("entityDefs.{$this->entityType}.collection.textFilterFields", ['name']);
     }
 
     protected function getSeed()
@@ -612,6 +629,11 @@ class Base
         return $result;
     }
 
+    public function buildSelectParams(array $params, $withAcl = false, $checkWherePermission = false)
+    {
+        return $this->getSelectParams($params, $withAcl, $checkWherePermission);
+    }
+
     public function getSelectParams(array $params, $withAcl = false, $checkWherePermission = false)
     {
         $result = array();
@@ -621,7 +643,7 @@ class Base
             if (!array_key_exists('asc', $params)) {
                 $params['asc'] = true;
             }
-            $this->order($params['sortBy'], $params['asc'], $result);
+            $this->order($params['sortBy'], !$params['asc'], $result);
         }
 
         if (!isset($params['offset'])) {
@@ -684,18 +706,22 @@ class Base
         }
     }
 
-    protected function getUserTimeZone()
+    public function getUserTimeZone()
     {
         if (empty($this->userTimeZone)) {
             $preferences = $this->getEntityManager()->getEntity('Preferences', $this->getUser()->id);
-            $timeZone = $preferences->get('timeZone');
-            $this->userTimeZone = $timeZone;
+            if ($preferences) {
+                $timeZone = $preferences->get('timeZone');
+                $this->userTimeZone = $timeZone;
+            } else {
+                $this->userTimeZone = 'UTC';
+            }
         }
 
         return $this->userTimeZone;
     }
 
-    protected function convertDateTimeWhere($item)
+    public function convertDateTimeWhere($item)
     {
         $format = 'Y-m-d H:i:s';
 
@@ -1039,10 +1065,10 @@ class Base
         return $part;
     }
 
-    public function applyOrder($sortBy, $asc, &$result)
+    public function applyOrder($sortBy, $desc, &$result)
     {
         $this->prepareResult($result);
-        $this->order($sortBy, $asc, $result);
+        $this->order($sortBy, $desc, $result);
     }
 
     public function applyLimit($offset, $maxSize, &$result)
@@ -1084,12 +1110,36 @@ class Base
 
     public function hasJoin($join, &$result)
     {
-        return in_array($join, $result['joins']);
+        if (in_array($join, $result['joins'])) {
+            return true;
+        }
+
+        foreach ($result['joins'] as $item) {
+            if (is_array($item) && count($item) > 1) {
+                if ($item[1] == $join) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public function hasLeftJoin($leftJoin, &$result)
     {
-        return in_array($leftJoin, $result['leftJoins']);
+        if (in_array($leftJoin, $result['leftJoins'])) {
+            return true;
+        }
+
+        foreach ($result['leftJoins'] as $item) {
+            if (is_array($item) && count($item) > 1) {
+                if ($item[1] == $leftJoin) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public function addJoin($join, &$result)

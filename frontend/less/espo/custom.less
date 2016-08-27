@@ -498,7 +498,7 @@ table.no-margin {
 
 .expanded-row {
     white-space: nowrap;
-    text-overflow: ellipsis;
+
     overflow: hidden;
 }
 
@@ -840,10 +840,28 @@ body > footer > p a:visited {
     margin-bottom: -2px;
 }
 
+.stream-head-container .internal-badge {
+    position: absolute; top: 34px; left: 19px;
+}
+
+.stream-head-container .internal-badge > span {
+    color: @brand-danger;
+}
+
 img.avatar.avatar-link {
     display: inline-block;
     margin-top: -2px;
     margin-right: 3px;
+}
+
+stream-head-text-container .span {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.stream-post-container .cell-post {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
 }
 
 .stream-post-container,
@@ -980,6 +998,40 @@ img.avatar.avatar-link {
     padding: 2px 0;
 }
 
+.list-group-side {
+    border: 0;
+}
+.list-group-side > li {
+    border: 0;
+    padding: 5px 0 5px (@container-padding - 3px);
+    margin-left: -(@container-padding);
+    border-left: 3px solid transparent;
+}
+
+.list-group-side > li.selected {
+    border-color: @brand-danger;
+}
+
+.list-group-side a:hover,
+.list-group-side a:focus,
+.list-group-tree a:hover,
+.list-group-tree a:focus {
+    text-decoration: none;
+}
+
+.list-group-side > li .cell {
+    padding: 2px 0;
+}
+
+.list-group-side li.selected a.side-link,
+.list-group-side li.selected a:hover.side-link,
+.list-group-side li.selected a:active.side-link,
+.list-group-side li.selected a:visited.side-link,
+.list-group-side li.selected a:focus.side-link {
+    color: @brand-danger;
+    font-weight: bold;
+}
+
 .text-bold {
     font-weight: 800;
 }
@@ -1017,6 +1069,26 @@ h5 {
     font-weight: bold;
     margin-top: 9px;
     margin-bottom: 9px;
+}
+
+.post-container .internal-mode-switcher {
+    color: @gray-light;
+    margin-left: 10px;
+    display: inline-block;
+    position: relative;
+    top: 2px;
+}
+
+.post-container .internal-mode-switcher.enabled {
+    color: @link-color;
+}
+
+.post-control .attachments {
+    width: 270px;
+}
+
+.post-container .attachments {
+    width: 270px;
 }
 
 @media screen and (min-width: @screen-sm-min) {

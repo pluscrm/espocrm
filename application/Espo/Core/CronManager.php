@@ -274,18 +274,27 @@ class CronManager
         $createdJobIdList = array();
         foreach ($activeScheduledJobList as $scheduledJob) {
             $scheduling = $scheduledJob['scheduling'];
-            $cronExpression = \Cron\CronExpression::factory($scheduling);
+
+            try {
+                $cronExpression = \Cron\CronExpression::factory($scheduling);
+            } catch (\Exception $e) {
+                $GLOBALS['log']->error('CronManager (ScheduledJob ['.$scheduledJob['id'].']): Scheduling string error - '. $e->getMessage() . '.');
+                continue;
+            }
 
             try {
                 $previousDate = $cronExpression->getPreviousRunDate()->format('Y-m-d H:i:s');
             } catch (\Exception $e) {
-                $GLOBALS['log']->error('CronManager: ScheduledJob ['.$scheduledJob['id'].']: CronExpression - Impossible CRON expression ['.$scheduling.']');
+                $GLOBALS['log']->error('CronManager (ScheduledJob ['.$scheduledJob['id'].']): Unsupported CRON expression ['.$scheduling.']');
                 continue;
             }
 
             if ($cronExpression->isDue()) {
                 $previousDate = date('Y-m-d H:i:s');
             }
+
+            $existingJob = $this->getCronJob()->getJobByScheduledJob($scheduledJob['id'], $previousDate);
+            if ($existingJob) continue;
 
             $className = $this->getScheduledJobUtil()->get($scheduledJob['job']);
             if ($className) {
@@ -299,9 +308,6 @@ class CronManager
             if (in_array($scheduledJob['id'], $runningScheduledJobIdList)) {
                 continue;
             }
-
-            $existingJob = $this->getCronJob()->getJobByScheduledJob($scheduledJob['id'], $previousDate);
-            if ($existingJob) continue;
 
             $jobEntity = $this->getEntityManager()->getEntity('Job');
             $jobEntity->set(array(

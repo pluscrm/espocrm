@@ -37,7 +37,7 @@ use \Zend\Mail\Storage;
 
 class EmailAccount extends Record
 {
-    protected $internalAttributeList = ['password'];
+    protected $internalAttributeList = ['password', 'smtpPassword'];
 
     protected $readOnlyAttributeList= ['fetchData'];
 
@@ -45,18 +45,13 @@ class EmailAccount extends Record
 
     protected function init()
     {
-        $this->dependencies[] = 'fileManager';
-        $this->dependencies[] = 'crypt';
-    }
-
-    protected function getFileManager()
-    {
-        return $this->injections['fileManager'];
+        parent::init();
+        $this->addDependency('crypt');
     }
 
     protected function getCrypt()
     {
-        return $this->injections['crypt'];
+        return $this->getInjection('crypt');
     }
 
     protected function handleInput(&$data)
@@ -64,6 +59,9 @@ class EmailAccount extends Record
         parent::handleInput($data);
         if (array_key_exists('password', $data)) {
             $data['password'] = $this->getCrypt()->encrypt($data['password']);
+        }
+        if (array_key_exists('smtpPassword', $data)) {
+            $data['smtpPassword'] = $this->getCrypt()->encrypt($data['smtpPassword']);
         }
     }
 
@@ -178,7 +176,7 @@ class EmailAccount extends Record
             throw new Error();
         }
 
-        $importer = new \Espo\Core\Mail\Importer($this->getEntityManager(), $this->getFileManager(), $this->getConfig());
+        $importer = new \Espo\Core\Mail\Importer($this->getEntityManager(), $this->getConfig());
 
         $maxSize = $this->getConfig()->get('emailMessageMaxSize');
 
@@ -195,6 +193,7 @@ class EmailAccount extends Record
         }
 
         $filterCollection = $this->getEntityManager()->getRepository('EmailFilter')->where([
+            'action' => 'Skip',
             'OR' => [
                 [
                     'parentType' => $emailAccount->getEntityType(),
@@ -249,7 +248,11 @@ class EmailAccount extends Record
             if (!empty($lastUID)) {
                 $ids = $storage->getIdsFromUID($lastUID);
             } else {
-                $dt = new \DateTime($emailAccount->get('fetchSince'));
+                $dt = null;
+                try {
+                    $dt = new \DateTime($emailAccount->get('fetchSince'));
+                } catch (\Exception $e) {}
+
                 if ($dt) {
                     $ids = $storage->getIdsFromDate($dt->format('d-M-Y'));
                 } else {
@@ -276,6 +279,12 @@ class EmailAccount extends Record
                     }
                 }
 
+                $folderData = null;
+                if ($emailAccount->get('emailFolderId')) {
+                    $folderData = array();
+                    $folderData[$userId] = $emailAccount->get('emailFolderId');
+                }
+
                 $message = null;
                 $email = null;
                 try {
@@ -284,7 +293,7 @@ class EmailAccount extends Record
                         $flags = $message->getFlags();
                     }
                     try {
-                    	$email = $importer->importMessage($message, null, $teamIdList, [$userId], $filterCollection, $fetchOnlyHeader);
+                    	$email = $importer->importMessage($message, null, $teamIdList, [$userId], $filterCollection, $fetchOnlyHeader, $folderData);
     	            } catch (\Exception $e) {
     	                $GLOBALS['log']->error('EmailAccount '.$emailAccount->id.' (Import Message): [' . $e->getCode() . '] ' .$e->getMessage());
     	            }
@@ -301,6 +310,7 @@ class EmailAccount extends Record
 
                 if (!empty($email)) {
                     if (!$email->isFetched()) {
+                        $this->getEntityManager()->getRepository('EmailAccount')->relate($emailAccount, 'emails', $email);
                         $this->noteAboutEmail($email);
                     }
                 }
@@ -309,7 +319,11 @@ class EmailAccount extends Record
                     $lastUID = $storage->getUniqueId($id);
 
                     if ($message && isset($message->date)) {
-                        $dt = new \DateTime($message->date);
+                        $dt = null;
+                        try {
+                            $dt = new \DateTime($message->date);
+                        } catch (\Exception $e) {}
+
                         if ($dt) {
                             $dateSent = $dt->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
                             $lastDate = $dateSent;

@@ -38,16 +38,13 @@ class Importer
 {
     private $entityManager;
 
-    private $fileManager;
-
     private $config;
 
     private $filtersMatcher;
 
-    public function __construct($entityManager, $fileManager, $config)
+    public function __construct($entityManager, $config)
     {
         $this->entityManager = $entityManager;
-        $this->fileManager = $fileManager;
         $this->config = $config;
         $this->filtersMatcher = new FiltersMatcher();
     }
@@ -56,14 +53,10 @@ class Importer
     {
         return $this->entityManager;
     }
+
     protected function getConfig()
     {
         return $this->config;
-    }
-
-    protected function getFileManager()
-    {
-        return $this->fileManager;
     }
 
     protected function getFiltersMatcher()
@@ -71,12 +64,17 @@ class Importer
         return $this->filtersMatcher;
     }
 
-    public function importMessage($message, $assignedUserId = null, $teamsIdList = [], $userIdList = [], $filterList = [], $fetchOnlyHeader = false)
+    public function importMessage($message, $assignedUserId = null, $teamsIdList = [], $userIdList = [], $filterList = [], $fetchOnlyHeader = false, $folderData = null)
     {
         try {
             $email = $this->getEntityManager()->getEntity('Email');
 
+            $email->set('isBeingImported', true);
+
             $subject = $message->subject;
+            if (!empty($subject) && is_string($subject)) {
+                $subject = trim($subject);
+            }
             if ($subject !== '0' && empty($subject)) {
                 $subject = '(No Subject)';
             }
@@ -87,12 +85,14 @@ class Importer
             $email->set('attachmentsIds', []);
             if ($assignedUserId) {
                 $email->set('assignedUserId', $assignedUserId);
-                $email->set('assignedUsersIds', [$assignedUserId]);
+                $email->addLinkMultipleId('assignedUsers', $assignedUserId);
             }
             $email->set('teamsIds', $teamsIdList);
 
             if (!empty($userIdList)) {
-                $email->set('usersIds', $userIdList);
+                foreach ($userIdList as $uId) {
+                    $email->addLinkMultipleId('users', $uId);
+                }
             }
 
             $fromArr = $this->getAddressListFromMessage($message, 'from');
@@ -112,7 +112,13 @@ class Importer
             $email->set('cc', implode(';', $ccArr));
             $email->set('replyTo', implode(';', $replyToArr));
 
-            if ($this->getFiltersMatcher()->match($email, $filterList)) {
+            if ($folderData) {
+                foreach ($folderData as $uId => $folderId) {
+                    $email->setLinkMultipleColumn('users', 'folderId', $uId, $folderId);
+                }
+            }
+
+            if ($this->getFiltersMatcher()->match($email, $filterList, true)) {
                 return false;
             }
 
@@ -136,6 +142,14 @@ class Importer
                         $duplicate->addLinkMultipleId('users', $uId);
                     }
                 }
+
+                if ($folderData) {
+                    foreach ($folderData as $uId => $folderId) {
+                        $email->setLinkMultipleColumn('users', 'folderId', $uId, $folderId);
+                    }
+                }
+
+                $duplicate->set('isBeingImported', true);
 
             	$this->getEntityManager()->saveEntity($duplicate);
 
@@ -201,6 +215,7 @@ class Importer
 
             $parentFound = false;
 
+            $replied = null;
             if (isset($message->inReplyTo) && !empty($message->inReplyTo)) {
                 $arr = explode(' ', $message->inReplyTo);
                 $inReplyTo = $arr[0];
@@ -250,6 +265,15 @@ class Importer
                 }
             }
 
+            if (!$parentFound) {
+                if ($replied && $replied->get('parentId') && $replied->get('parentType')) {
+                    $parentFound = $this->getEntityManager()->getEntity($replied->get('parentType'), $replied->get('parentId'));
+                    if ($parentFound) {
+                        $email->set('parentType', $replied->get('parentType'));
+                        $email->set('parentId', $replied->get('parentId'));
+                    }
+                }
+            }
             if (!$parentFound) {
                 $from = $email->get('from');
                 if ($from) {
@@ -446,12 +470,9 @@ class Importer
                     $content = base64_decode($content);
                 }
 
-                $attachment->set('size', strlen($content));
+                $attachment->set('contents', $content);
 
                 $this->getEntityManager()->saveEntity($attachment);
-
-                $path = $this->getEntityManager()->getRepository('Attachment')->getFilePath($attachment);
-                $this->getFileManager()->putContents($path, $content);
 
                 if ($disposition == 'attachment') {
                     $attachmentsIds = $email->get('attachmentsIds');

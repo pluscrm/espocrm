@@ -191,6 +191,8 @@ Espo.define('views/email/detail', ['views/detail', 'email-helper'], function (De
 
             attributes.description = '(' + this.model.get('name') + ')[#Email/view/' + this.model.id + ']';
 
+            attributes.name = this.translate('Email', 'scopeNames') + ': ' + this.model.get('name');
+
             var viewName = this.getMetadata().get('clientDefs.Task.modalViews.detail') || 'Modals.Edit';
 
             this.notify('Loading...');
@@ -291,23 +293,6 @@ Espo.define('views/email/detail', ['views/detail', 'email-helper'], function (De
             recordView.send();
         },
 
-
-        addForwardBodyAttrbutes: function (attributes) {
-            if (this.model.get('isHtml')) {
-                var body = this.model.get('body');
-                body = '<br>' + '------' + this.translate('Forwarded message', 'labels', 'Email') + '------<br>' + body;
-
-                attributes['body'] = body;
-            } else {
-                var bodyPlain = this.model.get('body') || this.model.get('bodyPlain') || '';
-
-                bodyPlain = '\n\n' + '------' + this.translate('Forwarded message', 'labels', 'Email') + '------' + '\n' + bodyPlain;                
-
-                attributes['body'] = bodyPlain;
-                attributes['bodyPlain'] = bodyPlain;
-            }
-        },
-
         actionReply: function (data, e, cc) {
             var emailHelper = new EmailHelper(this.getLanguage(), this.getUser());
 
@@ -335,28 +320,11 @@ Espo.define('views/email/detail', ['views/detail', 'email-helper'], function (De
         },
 
         actionForward: function (data, cc) {
-            var attributes = {
-                status: 'Draft',
-                isHtml: this.model.get('isHtml')
-            };
+            var emailHelper = new EmailHelper(this.getLanguage(), this.getUser(), this.getDateTime());
 
-            var subject = this.model.get('name');
-            if (~!subject.toUpperCase().indexOf('FWD:') && ~!subject.toUpperCase().indexOf('FW:')) {
-                attributes['name'] = 'Fwd: ' + subject;
-            } else {
-                attributes['name'] = subject;
-            }
-
-            if (this.model.get('parentId')) {
-                attributes['parentId'] = this.model.get('parentId');
-                attributes['parentName'] = this.model.get('parentName');
-                attributes['parentType'] = this.model.get('parentType');
-            }
-
-            this.addForwardBodyAttrbutes(attributes);
+            var attributes = emailHelper.getForwardAttributes(this.model, data, cc);
 
             this.notify('Loading...');
-
             $.ajax({
                 url: 'Email/action/getCopiedAttachments',
                 type: 'POST',

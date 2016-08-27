@@ -61,6 +61,34 @@ Espo.define('views/note/fields/post', ['views/fields/text', 'lib!Textcomplete'],
             Dep.prototype.afterRender.call(this);
             this.$element.attr('placeholder', this.translate('writeMessage', 'messages', 'Note'));
 
+            this.$textarea = this.$element;
+            var $textarea = this.$textarea;
+
+            $textarea.off('drop');
+            $textarea.off('dragover');
+            $textarea.off('dragleave');
+
+            this.$textarea.on('drop', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var e = e.originalEvent;
+                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+                    this.trigger('add-files', e.dataTransfer.files);
+                }
+                this.$textarea.attr('placeholder', originalPlaceholderText);
+            }.bind(this));
+
+            var originalPlaceholderText = this.$textarea.attr('placeholder');
+
+            this.$textarea.on('dragover', function (e) {
+                e.preventDefault();
+                this.$textarea.attr('placeholder', this.translate('dropToAttach', 'messages'));
+            }.bind(this));
+            this.$textarea.on('dragleave', function (e) {
+                e.preventDefault();
+                this.$textarea.attr('placeholder', originalPlaceholderText);
+            }.bind(this));
+
             var assignmentPermission = this.getAcl().get('assignmentPermission');
 
             var buildUserListUrl = function (term) {

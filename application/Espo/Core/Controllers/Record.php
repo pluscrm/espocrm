@@ -131,9 +131,7 @@ class Record extends Base
         $asc = $request->get('asc', 'true') === 'true';
         $sortBy = $request->get('sortBy');
         $q = $request->get('q');
-        $primaryFilter = $request->get('primaryFilter');
         $textFilter = $request->get('textFilter');
-        $boolFilterList = $request->get('boolFilterList');
 
         if (empty($maxSize)) {
             $maxSize = self::MAX_SIZE_LIMIT;
@@ -151,12 +149,8 @@ class Record extends Base
             'q' => $q,
             'textFilter' => $textFilter
         );
-        if ($request->get('primaryFilter')) {
-            $params['primaryFilter'] = $request->get('primaryFilter');
-        }
-        if ($request->get('boolFilterList')) {
-            $params['boolFilterList'] = $request->get('boolFilterList');
-        }
+
+        $this->fetchListParamsFromRequest($params, $request, $data);
 
         $result = $this->getRecordService()->findEntities($params);
 
@@ -164,6 +158,16 @@ class Record extends Base
             'total' => $result['total'],
             'list' => isset($result['collection']) ? $result['collection']->toArray() : $result['list']
         );
+    }
+
+    protected function fetchListParamsFromRequest(&$params, $request, $data)
+    {
+        if ($request->get('primaryFilter')) {
+            $params['primaryFilter'] = $request->get('primaryFilter');
+        }
+        if ($request->get('boolFilterList')) {
+            $params['boolFilterList'] = $request->get('boolFilterList');
+        }
     }
 
     public function actionListLinked($params, $data, $request)
@@ -195,12 +199,8 @@ class Record extends Base
             'q' => $q,
             'textFilter' => $textFilter
         );
-        if ($request->get('primaryFilter')) {
-            $params['primaryFilter'] = $request->get('primaryFilter');
-        }
-        if ($request->get('boolFilterList')) {
-            $params['boolFilterList'] = $request->get('boolFilterList');
-        }
+
+        $this->fetchListParamsFromRequest($params, $request, $data);
 
         $result = $this->getRecordService()->findLinkedEntities($id, $link, $params);
 
@@ -237,9 +237,11 @@ class Record extends Base
         $ids = $request->get('ids');
         $where = $request->get('where');
         $byWhere = $request->get('byWhere');
+        $selectData = $request->get('selectData');
 
         $params = array();
         if ($byWhere) {
+            $params['selectData'] = $selectData;
             $params['where'] = $where;
         } else {
             $params['ids'] = $ids;
@@ -266,6 +268,9 @@ class Record extends Base
         $params = array();
         if (array_key_exists('where', $data) && !empty($data['byWhere'])) {
             $params['where'] = json_decode(json_encode($data['where']), true);
+            if (array_key_exists('selectData', $data)) {
+                $params['selectData'] = json_decode(json_encode($data['selectData']), true);
+            }
         } else if (array_key_exists('ids', $data)) {
             $params['ids'] = $data['ids'];
         }
@@ -290,6 +295,9 @@ class Record extends Base
         if (array_key_exists('where', $data) && !empty($data['byWhere'])) {
             $where = json_decode(json_encode($data['where']), true);
             $params['where'] = $where;
+            if (array_key_exists('selectData', $data)) {
+                $params['selectData'] = json_decode(json_encode($data['selectData']), true);
+            }
         }
         if (array_key_exists('ids', $data)) {
             $params['ids'] = $data['ids'];
@@ -318,7 +326,13 @@ class Record extends Base
                 throw new BadRequest();
             }
             $where = json_decode(json_encode($data['where']), true);
-            return $this->getRecordService()->linkEntityMass($id, $link, $where);
+
+            $selectData = null;
+            if (isset($data['selectData']) && is_array($data['selectData'])) {
+                $selectData = json_decode(json_encode($data['selectData']), true);
+            }
+
+            return $this->getRecordService()->linkEntityMass($id, $link, $where, $selectData);
         } else {
             $foreignIdList = array();
             if (isset($data['id'])) {
@@ -422,6 +436,22 @@ class Record extends Base
         }
 
         return $this->getRecordService()->merge($targetId, $sourceIds, $attributes);
+    }
+
+    public function postActionGetDuplicateAttributes($params, $data, $request)
+    {
+        if (empty($data['id'])) {
+            throw new BadRequest();
+        }
+
+        if (!$this->getAcl()->check($this->name, 'create')) {
+            throw new Forbidden();
+        }
+        if (!$this->getAcl()->check($this->name, 'read')) {
+            throw new Forbidden();
+        }
+
+        return $this->getRecordService()->getDuplicateAttributes($data['id']);
     }
 }
 

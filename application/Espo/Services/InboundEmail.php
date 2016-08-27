@@ -39,6 +39,8 @@ class InboundEmail extends \Espo\Services\Record
 {
     protected $internalAttributeList = ['password'];
 
+    protected $readOnlyAttributeList= ['fetchData'];
+
     private $campaignService = null;
 
     const PORTION_LIMIT = 20;
@@ -70,14 +72,10 @@ class InboundEmail extends \Espo\Services\Record
 
     protected function init()
     {
-        $this->dependencies[] = 'fileManager';
-        $this->dependencies[] = 'mailSender';
-        $this->dependencies[] = 'crypt';
-    }
+        parent::init();
 
-    protected function getFileManager()
-    {
-        return $this->injections['fileManager'];
+        $this->addDependency('mailSender');
+        $this->addDependency('crypt');
     }
 
     protected function getMailSender()
@@ -158,7 +156,7 @@ class InboundEmail extends \Espo\Services\Record
             throw new Error();
         }
 
-        $importer = new \Espo\Core\Mail\Importer($this->getEntityManager(), $this->getFileManager(), $this->getConfig());
+        $importer = new \Espo\Core\Mail\Importer($this->getEntityManager(), $this->getConfig());
 
         $maxSize = $this->getConfig()->get('emailMessageMaxSize');
 
@@ -187,6 +185,7 @@ class InboundEmail extends \Espo\Services\Record
         }
 
         $filterCollection = $this->getEntityManager()->getRepository('EmailFilter')->where([
+            'action' => 'Skip',
             'OR' => [
                 [
                     'parentType' => $emailAccount->getEntityType(),
@@ -253,7 +252,11 @@ class InboundEmail extends \Espo\Services\Record
             if (!empty($lastUID)) {
                 $ids = $storage->getIdsFromUID($lastUID);
             } else {
-                $dt = new \DateTime($emailAccount->get('fetchSince'));
+                $dt = null;
+                try {
+                    $dt = new \DateTime($emailAccount->get('fetchSince'));
+                } catch (\Exception $e) {}
+
                 if ($dt) {
                     $ids = $storage->getIdsFromDate($dt->format('d-M-Y'));
                 } else {
@@ -316,6 +319,8 @@ class InboundEmail extends \Espo\Services\Record
                             }
                         }
 
+                        $this->getEntityManager()->getRepository('InboundEmail')->relate($emailAccount, 'emails', $email);
+
                         if ($emailAccount->get('createCase')) {
                             $this->createCase($emailAccount, $email);
                         } else {
@@ -331,7 +336,11 @@ class InboundEmail extends \Espo\Services\Record
 
                 if ($k == count($ids) - 1) {
                     if ($message && isset($message->date)) {
-                        $dt = new \DateTime($message->date);
+                        $dt = null;
+                        try {
+                            $dt = new \DateTime($message->date);
+                        } catch (\Exception $e) {}
+
                         if ($dt) {
                             $dateSent = $dt->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
                             $lastDate = $dateSent;

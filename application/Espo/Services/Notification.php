@@ -38,26 +38,6 @@ use Espo\Core\Utils\Json;
 
 class Notification extends \Espo\Services\Record
 {
-    protected function getEntityManager()
-    {
-        return $this->injections['entityManager'];
-    }
-
-    protected function getUser()
-    {
-        return $this->injections['user'];
-    }
-
-    protected function getMetadata()
-    {
-        return $this->injections['metadata'];
-    }
-
-    protected function getAclManager()
-    {
-        return $this->getInjection('aclManager');
-    }
-
     public function notifyAboutMentionInPost($userId, $noteId)
     {
         $notification = $this->getEntityManager()->getEntity('Notification');
@@ -81,16 +61,15 @@ class Notification extends \Espo\Services\Record
 
         $sql = "INSERT INTO `notification` (`id`, `data`, `type`, `user_id`, `created_at`, `related_id`, `related_type`, `related_parent_id`, `related_parent_type`) VALUES ";
         $arr = [];
-        foreach ($userIdList as $userId) {
-            if (empty($userId)) continue;
 
-            $user = $this->getEntityManager()->getEntity('User');
-            $user->id = $userId;
-            $user->setIsNew(false);
-            $user->setAsFetched();
-            if (!$this->checkUserNoteAccess($user, $note)) {
-                continue;
-            }
+        $userList = $this->getEntityManager()->getRepository('User')->where(array(
+            'isActive' => true,
+            'id' => $userIdList
+        ))->find();
+        foreach ($userList as $user) {
+            $userId = $user->id;
+            if (!$this->checkUserNoteAccess($user, $note)) continue;
+            if ($note->get('createdById') === $user->id) continue;
             $id = uniqid();
             $arr[] = "(".$pdo->quote($id).", ".$pdo->quote($encodedData).", ".$pdo->quote('Note').", ".$pdo->quote($userId).", ".$pdo->quote($now).", ".$pdo->quote($note->id).", ".$pdo->quote('Note').", ".$pdo->quote($note->get('parentId')).", ".$pdo->quote($note->get('parentType')).")";
         }
@@ -105,11 +84,16 @@ class Notification extends \Espo\Services\Record
 
     public function checkUserNoteAccess(\Espo\Entities\User $user, \Espo\Entities\Note $note)
     {
-        if (in_array($note->get('type'), ['EmailSent', 'EmailReceived'])) {
-            if (!$this->getAclManager()->checkScope($user, 'Email')) {
+        if ($user->get('isPortalUser')) {
+            if ($note->get('relatedType')) {
+                if ($note->get('relatedType') === 'Email' && $note->get('parentType') === 'Case') {
+                    return true;
+                }
                 return false;
             }
+            return true;
         }
+
         if ($note->get('relatedType')) {
             if (!$this->getAclManager()->checkScope($user, $note->get('relatedType'))) {
                 return false;

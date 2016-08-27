@@ -42,6 +42,14 @@
                "aclScope": "EmailTemplate"
              },
              {
+               "label": "Folders",
+               "link": "#EmailFolder"
+             },
+             {
+               "label": "Filters",
+               "link": "#EmailFilter"
+             },
+             {
                "label": "Email Accounts",
                "link": "#EmailAccount",
                "aclScope": "EmailAccountScope"
@@ -69,14 +77,9 @@
       }
    },
    "filterList": [
-      "inbox",
-      "sent",
-      "drafts",
-      "trash"
+
    ],
    "defaultFilterData": {
-       "presetName": "inbox",
-       "primary": "inbox"
    },
    "boolFilterList": []
 }
