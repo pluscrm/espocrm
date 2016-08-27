@@ -188,9 +188,7 @@ class Manager
 
         if (file_exists($fullPath) && strtolower(substr($fullPath, -4)) == '.php') {
             $phpContents = include($fullPath);
-            if (is_array($phpContents)) {
-                return $phpContents;
-            }
+            return $phpContents;
         }
 
         return false;
@@ -337,7 +335,6 @@ class Manager
     {
         $currentData = $this->getContents($path);
         if (!isset($currentData) || !$currentData) {
-            $GLOBALS['log']->notice('FileManager::unsetContents: File ['.$this->concatPaths($path).'] does not exist.');
             return false;
         }
 

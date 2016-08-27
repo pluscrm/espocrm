@@ -123,6 +123,15 @@ return array (    'defaultPermissions' =>
         'ldapTryUsernameSplit',
         'ldapOptReferrals',
         'ldapCreateEspoUser',
+        'ldapAccountDomainName',
+        'ldapAccountDomainNameShort',
+        'ldapUserNameAttribute',
+        'ldapUserFirstNameAttribute',
+        'ldapUserLastNameAttribute',
+        'ldapUserTitleAttribute',
+        'ldapUserEmailAddressAttribute',
+        'ldapUserPhoneNumberAttribute',
+        'ldapUserObjectClass',
         'maxEmailAccountCount',
         'massEmailMaxPerHourCount',
         'personalEmailMaxPortionSize',
@@ -131,5 +140,12 @@ return array (    'defaultPermissions' =>
         'authTokenMaxIdleTime'
     ),
     'isInstalled' => false,
+    'ldapUserNameAttribute' => 'sAMAccountName',
+    'ldapUserFirstNameAttribute' => 'givenName',
+    'ldapUserLastNameAttribute' => 'sn',
+    'ldapUserTitleAttribute' => 'title',
+    'ldapUserEmailAddressAttribute' => 'mail',
+    'ldapUserPhoneNumberAttribute' => 'telephoneNumber',
+    'ldapUserObjectClass' => 'person',
 );
 

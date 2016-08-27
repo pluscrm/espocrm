@@ -47,6 +47,8 @@ class Activities extends \Espo\Core\Services\Base
         ]);
     }
 
+    const UPCOMING_ACTIVITIES_FUTURE_DAYS = 1;
+
     protected function getPDO()
     {
         return $this->getEntityManager()->getPDO();
@@ -54,22 +56,22 @@ class Activities extends \Espo\Core\Services\Base
 
     protected function getEntityManager()
     {
-        return $this->injections['entityManager'];
+        return $this->getInjection('entityManager');
     }
 
     protected function getUser()
     {
-        return $this->injections['user'];
+        return $this->getInjection('user');
     }
 
     protected function getAcl()
     {
-        return $this->injections['acl'];
+        return $this->getInjection('acl');
     }
 
     protected function getMetadata()
     {
-        return $this->injections['metadata'];
+        return $this->getInjection('metadata');
     }
 
     protected function getSelectManagerFactory()
@@ -666,6 +668,12 @@ class Activities extends \Espo\Core\Services\Base
 
         $fetchAll = empty($params['scope']);
 
+        if (!$fetchAll) {
+            if (!$this->getMetadata()->get(['scopes', $params['scope'], 'activity'])) {
+                throw new Error('Entity \'' . $params['scope'] . '\' is not an activity');
+            }
+        }
+
         $parts = array();
         if ($this->getAcl()->checkScope('Meeting')) {
             $parts['Meeting'] = ($fetchAll || $params['scope'] == 'Meeting') ? $this->getMeetingQuery($entity, 'NOT IN', ['Held', 'Not Held']) : [];
@@ -673,6 +681,7 @@ class Activities extends \Espo\Core\Services\Base
         if ($this->getAcl()->checkScope('Call')) {
             $parts['Call'] = ($fetchAll || $params['scope'] == 'Call') ? $this->getCallQuery($entity, 'NOT IN', ['Held', 'Not Held']) : [];
         }
+
         return $this->getResultFromQueryParts($parts, $scope, $id, $params);
     }
 
@@ -686,6 +695,12 @@ class Activities extends \Espo\Core\Services\Base
         $this->accessCheck($entity);
 
         $fetchAll = empty($params['scope']);
+
+        if (!$fetchAll) {
+            if (!$this->getMetadata()->get(['scopes', $params['scope'], 'activity'])) {
+                throw new Error('Entity \'' . $params['scope'] . '\' is not an activity');
+            }
+        }
 
         $parts = array();
         if ($this->getAcl()->checkScope('Meeting')) {
@@ -729,8 +744,22 @@ class Activities extends \Espo\Core\Services\Base
             'leftJoins' => ['users'],
             'whereClause' => array(
                 'usersMiddle.userId' => $userId,
-                'dateStart>=' => $from,
-                'dateStart<' => $to,
+                array(
+                    'OR' => array(
+                        array(
+                            'dateStart>=' => $from,
+                            'dateStart<' => $to
+                        ),
+                        array(
+                            'dateEnd>=' => $from,
+                            'dateEnd<' => $to
+                        ),
+                        array(
+                            'dateStart<=' => $from,
+                            'dateEnd>=' => $to
+                        )
+                    )
+                ),
                 'usersMiddle.status!=' => 'Declined'
             ),
             'customJoin' => ''
@@ -760,8 +789,22 @@ class Activities extends \Espo\Core\Services\Base
             'leftJoins' => ['users'],
             'whereClause' => array(
                 'usersMiddle.userId' => $userId,
-                'dateStart>=' => $from,
-                'dateStart<' => $to,
+                array(
+                    'OR' => array(
+                        array(
+                            'dateStart>=' => $from,
+                            'dateStart<' => $to
+                        ),
+                        array(
+                            'dateEnd>=' => $from,
+                            'dateEnd<' => $to
+                        ),
+                        array(
+                            'dateStart<=' => $from,
+                            'dateEnd>=' => $to
+                        )
+                    )
+                ),
                 'usersMiddle.status!=' => 'Declined'
             ),
             'customJoin' => ''
@@ -861,6 +904,10 @@ class Activities extends \Espo\Core\Services\Base
                         array(
                             'dateEnd>=' => $from,
                             'dateEnd<' => $to,
+                        ),
+                        array(
+                            'dateStart<=' => $from,
+                            'dateEnd>=' => $to
                         ),
                         array(
                             'dateEndDate!=' => null,
@@ -1034,23 +1081,26 @@ class Activities extends \Espo\Core\Services\Base
 
             $selectManager->applyPrimaryFilter('planned', $selectParams);
             $selectManager->applyBoolFilter('onlyMy', $selectParams);
-            $selectManager->applyWhere(array(
-                '1' =>  array(
-                    'type' => 'or',
-                    'value' => array(
-                        '1' => array(
-                            'type' => 'today',
-                            'field' => 'dateStart',
-                            'dateTime' => true
-                        ),
-                        '2' => array(
-                            'type' => 'future',
-                            'field' => 'dateEnd',
-                            'dateTime' => true
-                        )
-                    )
-                )
-            ), $selectParams);
+            $selectManager->addOrWhere([
+                $selectManager->convertDateTimeWhere(array(
+                    'type' => 'today',
+                    'field' => 'dateStart',
+                    'timeZone' => $selectManager->getUserTimeZone()
+                )),
+                [
+                    $selectManager->convertDateTimeWhere(array(
+                        'type' => 'future',
+                        'field' => 'dateEnd',
+                        'timeZone' => $selectManager->getUserTimeZone()
+                    )),
+                    $selectManager->convertDateTimeWhere(array(
+                        'type' => 'before',
+                        'field' => 'dateStart',
+                        'value' => (new \DateTime())->modify('+' . self::UPCOMING_ACTIVITIES_FUTURE_DAYS . ' days')->format('Y-m-d H:i:s'),
+                        'timeZone' => $selectManager->getUserTimeZone()
+                    ))
+                ]
+            ], $selectParams);
 
             $sql = $this->getEntityManager()->getQuery()->createSelectQuery($entityType, $selectParams);
 

@@ -121,7 +121,12 @@ class Record extends \Espo\Core\Services\Base
 
     protected function getAcl()
     {
-        return $this->injections['acl'];
+        return $this->getInjection('acl');
+    }
+
+    protected function getAclManager()
+    {
+        return $this->getInjection('aclManager');
     }
 
     protected function getFileManager()
@@ -318,8 +323,11 @@ class Record extends \Espo\Core\Services\Base
         }
     }
 
-    protected function getSelectManager($entityType)
+    protected function getSelectManager($entityType = null)
     {
+        if (!$entityType) {
+            $entityType = $this->getEntityType();
+        }
         return $this->getSelectManagerFactory()->create($entityType);
     }
 
@@ -388,8 +396,8 @@ class Record extends \Espo\Core\Services\Base
                     return false;
                 }
             } else if ($assignmentPermission == 'team') {
-                $teamIds = $this->getUser()->get('teamsIds');
-                if (!$this->getEntityManager()->getRepository('User')->checkBelongsToAnyOfTeams($assignedUserId, $teamIds)) {
+                $teamIdList = $this->getUser()->get('teamsIds');
+                if (!$this->getEntityManager()->getRepository('User')->checkBelongsToAnyOfTeams($assignedUserId, $teamIdList)) {
                     return false;
                 }
             }
@@ -845,7 +853,7 @@ class Record extends \Espo\Core\Services\Base
         return true;
     }
 
-    public function linkEntityMass($id, $link, $where)
+    public function linkEntityMass($id, $link, $where, $selectData = null)
     {
         if (empty($id) || empty($link)) {
             throw new BadRequest;
@@ -879,6 +887,12 @@ class Record extends \Espo\Core\Services\Base
             $where = array();
         }
         $params['where'] = $where;
+
+        if (is_array($selectData)) {
+            foreach ($selectData as $k => $v) {
+                $params[$k] = $v;
+            }
+        }
 
         $selectParams = $this->getRecordService($foreignEntityType)->getSelectParams($params);
 
@@ -930,6 +944,13 @@ class Record extends \Espo\Core\Services\Base
             $where = $params['where'];
             $p = array();
             $p['where'] = $where;
+
+            if (!empty($params['selectData']) && is_array($params['selectData'])) {
+                foreach ($params['selectData'] as $k => $v) {
+                    $p[$k] = $v;
+                }
+            }
+
             $selectParams = $this->getSelectParams($p);
 
             $collection = $repository->find($selectParams);
@@ -972,7 +993,7 @@ class Record extends \Espo\Core\Services\Base
             $ids = $params['ids'];
             foreach ($ids as $id) {
                 $entity = $this->getEntity($id);
-                if ($entity && $this->getAcl()->check($entity, 'remove')) {
+                if ($entity && $this->getAcl()->check($entity, 'delete')) {
                     if ($repository->remove($entity)) {
                         $idsRemoved[] = $entity->id;
                         $count++;
@@ -985,12 +1006,19 @@ class Record extends \Espo\Core\Services\Base
             $where = $params['where'];
             $p = array();
             $p['where'] = $where;
+
+            if (!empty($params['selectData']) && is_array($params['selectData'])) {
+                foreach ($params['selectData'] as $k => $v) {
+                    $p[$k] = $v;
+                }
+            }
+
             $selectParams = $this->getSelectParams($p);
             $skipTextColumns['skipTextColumns'] = true;
             $collection = $repository->find($selectParams);
 
             foreach ($collection as $entity) {
-                if ($this->getAcl()->check($entity, 'remove')) {
+                if ($this->getAcl()->check($entity, 'delete')) {
                     if ($repository->remove($entity)) {
                         $idsRemoved[] = $entity->id;
                         $count++;
@@ -1070,6 +1098,8 @@ class Record extends \Espo\Core\Services\Base
 
     public function export(array $params)
     {
+
+
         if (array_key_exists('ids', $params)) {
             $ids = $params['ids'];
             $where = array(
@@ -1079,12 +1109,17 @@ class Record extends \Espo\Core\Services\Base
                     'value' => $ids
                 )
             );
-            $selectParams = $this->getSelectManager($this->entityType)->getSelectParams(array('where' => $where), true, true);
+            $selectParams = $this->getSelectManager($this->getEntityType())->getSelectParams(array('where' => $where), true, true);
         } else if (array_key_exists('where', $params)) {
             $where = $params['where'];
 
             $p = array();
             $p['where'] = $where;
+            if (!empty($params['selectData']) && is_array($params['selectData'])) {
+                foreach ($params['selectData'] as $k => $v) {
+                    $p[$k] = $v;
+                }
+            }
             $selectParams = $this->getSelectParams($p);
         } else {
             throw new BadRequest();
@@ -1129,9 +1164,9 @@ class Record extends \Espo\Core\Services\Base
                     } else {
                         if (in_array($defs['type'], ['email', 'phone'])) {
                             $fieldList[] = $field;
-                        } else if ($defs['name'] == 'name') {
+                        } /*else if ($defs['name'] == 'name') {
                             $fieldList[] = $field;
-                        }
+                        }*/
                     }
                 }
                 foreach ($this->exportAdditionalAttributeList as $field) {
@@ -1413,6 +1448,60 @@ class Record extends \Espo\Core\Services\Base
             'total' => $total,
             'list' => $list
         );
+    }
+
+    public function getDuplicateAttributes($id)
+    {
+        if (empty($id)) {
+            throw new BadRequest();
+        }
+
+        $entity = $this->getEntity($id);
+
+        if (!$entity) {
+            throw new NotFound();
+        }
+
+        $attributes = $entity->getValues();
+        unset($attributes['id']);
+
+        $fields = $this->getMetadata()->get(['entityDefs', $this->getEntityType(), 'fields'], array());
+
+        foreach ($fields as $field => $item) {
+            if (empty($item['type'])) continue;
+            $type = $item['type'];
+
+            if (in_array($type, ['file', 'image'])) {
+                $attachment = $entity->get($field);
+                if ($attachment) {
+                    $attachment = $this->getEntityManager()->getRepository('Attachment')->getCopiedAttachment($attachment);
+                    $idAttribute = $field . 'Id';
+                    if ($attachment) {
+                        $attributes[$idAttribute] = $attachment->id;
+                    }
+                }
+            } else if (in_array($type, ['attachmentMultiple'])) {
+                $attachmentList = $entity->get($field);
+                if (count($attachmentList)) {
+                    $idList = [];
+                    $nameHash = (object) [];
+                    $typeHash = (object) [];
+                    foreach ($attachmentList as $attachment) {
+                        $attachment = $this->getEntityManager()->getRepository('Attachment')->getCopiedAttachment($attachment);
+                        if ($attachment) {
+                            $idList[] = $attachment->id;
+                            $nameHash->{$attachment->id} = $attachment->get('name');
+                            $typeHash->{$attachment->id} = $attachment->get('type');
+                        }
+                    }
+                    $attributes[$field . 'Ids'] = $idList;
+                    $attributes[$field . 'Names'] = $nameHash;
+                    $attributes[$field . 'Types'] = $typeHash;
+                }
+            }
+        }
+
+        return $attributes;
     }
 }
 

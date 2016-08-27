@@ -323,7 +323,24 @@ ul.dropdown-menu > li.checkbox:last-child {
     margin-bottom: 1px;
 }
 
-.field .link-container .list-group-item .form-control {
+.filter > .form-group .field {
+    .link-container {
+        font-size: @font-size-small;
+    }
+    .input-group {
+        input {
+            font-size: @font-size-small;
+            height: @input-height-small;
+        }
+        button.btn {
+            font-size: @font-size-small;
+            height: @input-height-small;
+        }
+    }
+}
+
+.field .link
+-container .list-group-item .form-control {
     width: 140px !important;
 }
 
@@ -498,7 +515,7 @@ table.no-margin {
 
 .expanded-row {
     white-space: nowrap;
-    text-overflow: ellipsis;
+
     overflow: hidden;
 }
 
@@ -854,6 +871,16 @@ img.avatar.avatar-link {
     margin-right: 3px;
 }
 
+stream-head-text-container .span {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.stream-post-container .cell-post {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
 .stream-post-container,
 .stream-attachments-container,
 .stream-details-container,
@@ -988,6 +1015,40 @@ img.avatar.avatar-link {
     padding: 2px 0;
 }
 
+.list-group-side {
+    border: 0;
+}
+.list-group-side > li {
+    border: 0;
+    padding: 5px 0 5px (@container-padding - 3px);
+    margin-left: -(@container-padding);
+    border-left: 3px solid transparent;
+}
+
+.list-group-side > li.selected {
+    border-color: @brand-danger;
+}
+
+.list-group-side a:hover,
+.list-group-side a:focus,
+.list-group-tree a:hover,
+.list-group-tree a:focus {
+    text-decoration: none;
+}
+
+.list-group-side > li .cell {
+    padding: 2px 0;
+}
+
+.list-group-side li.selected a.side-link,
+.list-group-side li.selected a:hover.side-link,
+.list-group-side li.selected a:active.side-link,
+.list-group-side li.selected a:visited.side-link,
+.list-group-side li.selected a:focus.side-link {
+    color: @brand-danger;
+    font-weight: bold;
+}
+
 .text-bold {
     font-weight: 800;
 }
@@ -1037,6 +1098,14 @@ h5 {
 
 .post-container .internal-mode-switcher.enabled {
     color: @link-color;
+}
+
+.post-control .attachments {
+    width: 270px;
+}
+
+.post-container .attachments {
+    width: 270px;
 }
 
 @media screen and (min-width: @screen-sm-min) {

@@ -165,6 +165,35 @@ Espo.define('views/stream/panel', ['views/record/panels/relationship', 'lib!Text
             this.$attachments = this.$el.find('div.attachments');
             this.$postContainer = this.$el.find('.post-container');
 
+            var $textarea = this.$textarea;
+
+            $textarea.off('drop');
+            $textarea.off('dragover');
+            $textarea.off('dragleave');
+
+            $textarea.on('drop', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var e = e.originalEvent;
+                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+                    this.getView('attachments').uploadFiles(e.dataTransfer.files);
+                    this.enablePostingMode();
+                }
+                this.$textarea.attr('placeholder', originalPlaceholderText);
+            }.bind(this));
+
+            var originalPlaceholderText = this.$textarea.attr('placeholder');
+
+            $textarea.on('dragover', function (e) {
+                e.preventDefault();
+                this.$textarea.attr('placeholder', this.translate('dropToAttach', 'messages'));
+            }.bind(this));
+
+            $textarea.on('dragleave', function (e) {
+                e.preventDefault();
+                this.$textarea.attr('placeholder', originalPlaceholderText);
+            }.bind(this));
+
             var collection = this.collection;
 
             this.listenToOnce(collection, 'sync', function () {
@@ -176,10 +205,16 @@ Espo.define('views/stream/panel', ['views/record/panels/relationship', 'lib!Text
                     view.render();
                 });
 
+                this.stopListening(this.model, 'all');
+                this.stopListening(this.model, 'destroy');
                 setTimeout(function () {
                     this.listenTo(this.model, 'all', function (event) {
                         if (!~['sync', 'after:relate'].indexOf(event)) return;
                         collection.fetchNew();
+                    }, this);
+
+                    this.listenTo(this.model, 'destroy', function () {
+                        this.stopListening(this.model, 'all');
                     }, this);
                 }.bind(this), 500);
 

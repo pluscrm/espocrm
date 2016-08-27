@@ -104,10 +104,10 @@ class Sender
             $opts['connection_config']['ssl'] = strtolower($params['security']);
         }
 
-        if (in_array('fromName', $params)) {
+        if (array_key_exists('fromName', $params)) {
             $this->params['fromName'] = $params['fromName'];
         }
-        if (in_array('fromAddress', $params)) {
+        if (array_key_exists('fromAddress', $params)) {
             $this->params['fromAddress'] = $params['fromAddress'];
         }
 
@@ -340,15 +340,12 @@ class Sender
         $message->setEncoding('UTF-8');
 
         try {
-            $rand = mt_rand(1000, 9999);
-
-            if ($email->get('parentType') && $email->get('parentId')) {
-                $messageId = '' . $email->get('parentType') .'/' . $email->get('parentId') . '/' . time() . '/' . $rand . '@espo';
+            $messageId = $email->get('messageId');
+            if (empty($messageId) || !is_string($messageId) || strlen($messageId) < 4) {
+                $messageId = $this->generateMessageId($email);
+                $email->set('messageId', '<' . $messageId . '>');
             } else {
-                $messageId = '' . md5($email->get('name')) . '/' . time() . '/' . $rand .  '@espo';
-            }
-            if ($email->get('isSystem')) {
-                $messageId .= '-system';
+                $messageId = substr($messageId, 1, strlen($messageId) - 2);
             }
 
             $messageIdHeader = new \Zend\Mail\Header\MessageId();
@@ -357,7 +354,6 @@ class Sender
 
             $this->transport->send($message);
 
-            $email->set('messageId', '<' . $messageId . '>');
             $email->set('status', 'Sent');
             $email->set('dateSent', date("Y-m-d H:i:s"));
         } catch (\Exception $e) {
@@ -365,6 +361,22 @@ class Sender
         }
 
         $this->useGlobal();
+    }
+
+    static public function generateMessageId(Email $email)
+    {
+        $rand = mt_rand(1000, 9999);
+
+        if ($email->get('parentType') && $email->get('parentId')) {
+            $messageId = '' . $email->get('parentType') .'/' . $email->get('parentId') . '/' . time() . '/' . $rand . '@espo';
+        } else {
+            $messageId = '' . md5($email->get('name')) . '/' . time() . '/' . $rand .  '@espo';
+        }
+        if ($email->get('isSystem')) {
+            $messageId .= '-system';
+        }
+
+        return $messageId;
     }
 }
 

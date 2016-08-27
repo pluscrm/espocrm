@@ -154,9 +154,7 @@
             "required": true
         },
         "ldapPort": {
-            "type": "int",
-            "max": 9999,
-            "min": 0,
+            "type": "varchar",
             "default": 389
         },
         "ldapSecurity": {
@@ -164,46 +162,101 @@
             "options": ["", "SSL", "TLS"]
         },
         "ldapAuth": {
-            "type": "bool"
+            "type": "bool",
+            "tooltip": true
         },
         "ldapUsername": {
             "type": "varchar",
-            "required": true
+            "required": true,
+            "tooltip": true
         },
         "ldapPassword": {
-            "type": "password"
+            "type": "password",
+            "tooltip": true
         },
         "ldapBindRequiresDn": {
-            "type": "bool"
-        },
-        "ldapBaseDn": {
-            "type": "varchar"
+            "type": "bool",
+            "tooltip": true
         },
         "ldapUserLoginFilter": {
-            "type": "varchar"
+            "type": "varchar",
+            "tooltip": true
+        },
+        "ldapBaseDn": {
+            "type": "varchar",
+            "tooltip": true
         },
         "ldapAccountCanonicalForm": {
             "type": "enum",
-            "options": ["Dn", "Username", "Backslash", "Principal"]
+            "options": ["Dn", "Username", "Backslash", "Principal"],
+            "tooltip": true
         },
         "ldapAccountDomainName": {
-            "type": "varchar"
+            "type": "varchar",
+            "tooltip": true
         },
         "ldapAccountDomainNameShort": {
-            "type": "varchar"
+            "type": "varchar",
+            "tooltip": true
         },
         "ldapAccountFilterFormat": {
             "type": "varchar"
         },
         "ldapTryUsernameSplit": {
-            "type": "bool"
+            "type": "bool",
+            "tooltip": true
         },
         "ldapOptReferrals": {
-            "type": "bool"
+            "type": "bool",
+            "tooltip": true
         },
         "ldapCreateEspoUser": {
             "type": "bool",
-            "default": true
+            "default": true,
+            "tooltip": true
+        },
+        "ldapUserNameAttribute": {
+            "type": "varchar",
+            "required": true,
+            "tooltip": true
+        },
+        "ldapUserObjectClass": {
+            "type": "varchar",
+            "required": true,
+            "tooltip": true
+        },
+        "ldapUserFirstNameAttribute": {
+            "type": "varchar",
+            "required": true,
+            "tooltip": true
+        },
+        "ldapUserLastNameAttribute": {
+            "type": "varchar",
+            "required": true,
+            "tooltip": true
+        },
+        "ldapUserTitleAttribute": {
+            "type": "varchar",
+            "required": true,
+            "tooltip": true
+        },
+        "ldapUserEmailAddressAttribute": {
+            "type": "varchar",
+            "required": true,
+            "tooltip": true
+        },
+        "ldapUserPhoneNumberAttribute": {
+            "type": "varchar",
+            "required": true,
+            "tooltip": true
+        },
+        "ldapUserDefaultTeam": {
+            "type": "link",
+            "tooltip": true
+        },
+        "ldapUserTeams": {
+            "type": "linkMultiple",
+            "tooltip": true
         },
         "exportDisabled": {
             "type": "bool",
@@ -222,6 +275,31 @@
             "type": "multiEnum",
             "translation": "Global.scopeNamesPlural",
             "view": "views/settings/fields/assignment-notifications-entity-list"
+        },
+        "postEmailNotifications": {
+            "type": "bool",
+            "default": false
+        },
+        "updateEmailNotifications": {
+            "type": "bool",
+            "default": false
+        },
+        "mentionEmailNotifications": {
+            "type": "bool",
+            "default": false
+        },
+        "streamEmailNotifications": {
+            "type": "bool",
+            "default": false
+        },
+        "portalStreamEmailNotifications": {
+            "type": "bool",
+            "default": true
+        },
+        "streamEmailNotificationsEntityList": {
+            "type": "multiEnum",
+            "translation": "Global.scopeNamesPlural",
+            "view": "views/settings/fields/stream-email-notifications-entity-list"
         },
         "b2cMode": {
             "type": "bool",
@@ -314,6 +392,27 @@
         "calendarEntityList": {
             "type": "multiEnum",
             "view": "views/settings/fields/calendar-entity-list"
+        },
+        "googleMapsApiKey": {
+            "type": "varchar"
+        }
+    },
+    "links": {
+        "ldapUserDefaultTeam": {
+            "type": "belongsTo",
+            "entity": "Team"
+        },
+        "ldapUserTeams": {
+            "type": "hasMany",
+            "entity": "Team",
+            "foreign": "users",
+            "additionalColumns": {
+                "role": {
+                    "type": "varchar",
+                    "len": 100
+                }
+            },
+            "layoutRelationshipsDisabled": true
         }
     }
 }

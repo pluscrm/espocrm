@@ -69,6 +69,7 @@ return array (
         'es_ES',
         'fr_FR',
         'id_ID',
+        'it_IT',
         'nl_NL',
         'tr_TR',
         'ro_RO',
@@ -100,6 +101,8 @@ return array (
     'assignmentEmailNotifications' => false,
     'assignmentEmailNotificationsEntityList' => ['Lead', 'Opportunity', 'Task', 'Case'],
     'assignmentNotificationsEntityList' => ['Meeting', 'Call', 'Task', 'Email'],
+    "portalStreamEmailNotifications" => true,
+    'streamEmailNotificationsEntityList' => ['Case'],
     'emailMessageMaxSize' => 10,
     'notificationsCheckInterval' => 10,
     'disabledCountQueryEntityList' => ['Email'],
@@ -148,6 +151,6 @@ return array (
         ]
     ],
     "calendarEntityList" => ["Meeting", "Call", "Task"],
-    'isInstalled' => false
+    'isInstalled' => false,
 );
 

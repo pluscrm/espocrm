@@ -402,18 +402,14 @@ abstract class Base
             if (strpos($orderBy, 'LIST:') === 0) {
                 list($l, $field, $list) = explode(':', $orderBy);
                 $fieldPath = $this->getFieldPathForOrderBy($entity, $field);
-                $part = "FIELD(" . $fieldPath . ", '" . implode("', '", explode(",", $list)) . "')";
-                if (!is_null($order)) {
-                    $order = strtoupper($order);
-                    if (!in_array($order, ['ASC', 'DESC'])) {
-                        $order = 'ASC';
-                    }
-                    $part .= " " . $order;
-                }
+                $part = "FIELD(" . $fieldPath . ", '" . implode("', '", array_reverse(explode(",", $list))) . "') DESC";
                 return $part;
             }
 
             if (!is_null($order)) {
+                if (is_bool($order)) {
+                    $order = $order ? 'DESC' : 'ASC';
+                }
                 $order = strtoupper($order);
                 if (!in_array($order, ['ASC', 'DESC'])) {
                     $order = 'ASC';
@@ -479,7 +475,11 @@ abstract class Base
 
     public function quote($value)
     {
-        return $this->pdo->quote($value);
+        if (is_null($value)) {
+            return 'NULL';
+        } else {
+            return $this->pdo->quote($value);
+        }
     }
 
     public function toDb($field)

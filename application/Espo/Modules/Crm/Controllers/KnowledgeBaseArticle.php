@@ -40,4 +40,36 @@ class KnowledgeBaseArticle extends \Espo\Core\Controllers\Record
 
         return $this->getRecordService()->getCopiedAttachments($id);
     }
+
+    public function postActionMoveUp($params, $data, $request)
+    {
+        if (empty($data['id'])) {
+            throw new BadRequest();
+        }
+        $where = null;
+        if (!empty($data['where'])) {
+            $where = $data['where'];
+            $where = json_decode(json_encode($where), true);
+        }
+
+        $this->getRecordService()->moveUp($data['id'], $where);
+
+        return true;
+    }
+
+    public function postActionMoveDown($params, $data, $request)
+    {
+        if (empty($data['id'])) {
+            throw new BadRequest();
+        }
+        $where = null;
+        if (!empty($data['where'])) {
+            $where = $data['where'];
+            $where = json_decode(json_encode($where), true);
+        }
+
+        $this->getRecordService()->moveDown($data['id'], $where);
+
+        return true;
+    }
 }

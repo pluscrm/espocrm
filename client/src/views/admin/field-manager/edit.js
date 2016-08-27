@@ -39,9 +39,11 @@ Espo.define('views/admin/field-manager/edit', ['view', 'model'], function (Dep, 
                 scope: this.scope,
                 field: this.field,
                 defs: this.defs,
-                params: this.params,
+                paramList: this.paramList,
                 type: this.type,
                 fieldList: this.fieldList,
+                isCustom: this.defs.isCustom,
+                isNew: this.isNew,
             };
         },
 
@@ -52,20 +54,14 @@ Espo.define('views/admin/field-manager/edit', ['view', 'model'], function (Dep, 
             'click button[data-action="save"]': function () {
                 this.save();
             },
+            'click button[data-action="resetToDefault"]': function () {
+                this.resetToDefault();
+            },
         },
 
-        setup: function () {
-            this.scope = this.options.scope;
-            this.field = this.options.field;
-            this.type = this.options.type;
+        setupFieldData: function (callback) {
             this.defs = {};
-
             this.fieldList = [];
-
-            this.isNew = false;
-            if (!this.field) {
-                this.isNew = true;
-            }
 
             this.model = new Model();
             this.model.name = 'Admin';
@@ -75,7 +71,8 @@ Espo.define('views/admin/field-manager/edit', ['view', 'model'], function (Dep, 
                 fields: {
                     name: {required: true},
                     label: {required: true},
-                },
+                    tooltipText: {}
+                }
             };
 
             if (!this.isNew) {
@@ -83,14 +80,15 @@ Espo.define('views/admin/field-manager/edit', ['view', 'model'], function (Dep, 
                 this.model.scope = this.scope;
                 this.model.set('name', this.field);
                 this.model.set('label', this.getLanguage().translate(this.field, 'fields', this.scope));
+
+                if (this.getMetadata().get(['entityDefs', this.scope, 'fields', this.field, 'tooltip'])) {
+                    this.model.set('tooltipText', this.getLanguage().translate(this.field, 'tooltips', this.scope));
+                }
             } else {
                 this.model.set('type', this.type);
             }
 
-
-            this.wait(true);
             this.getModelFactory().create(this.scope, function (model) {
-
                 if (!this.isNew) {
                     this.type = model.getFieldType(this.field);
                 }
@@ -109,18 +107,18 @@ Espo.define('views/admin/field-manager/edit', ['view', 'model'], function (Dep, 
                         }.bind(this));
                     }.bind(this))
                 ]).then(function () {
-                    this.params = [];
-                    var params = this.getFieldManager().getParams(this.type) || [];
-                    params.forEach(function (o) {
+                    this.paramList = [];
+                    var paramList = this.getFieldManager().getParams(this.type) || [];
+                    paramList.forEach(function (o) {
                         var item = o.name;
                         var disableParamName = 'customization' + Espo.Utils.upperCaseFirst(item) + 'Disabled';
                         if (this.getMetadata().get('entityDefs.' + this.scope + '.fields.' + this.field + '.' + disableParamName)) {
                             return;
                         }
-                        this.params.push(o);
+                        this.paramList.push(o);
                     }, this);
 
-                    this.params.forEach(function (o) {
+                    this.paramList.forEach(function (o) {
                         this.model.defs.fields[o.name] = o;
                     }, this);
 
@@ -137,16 +135,37 @@ Espo.define('views/admin/field-manager/edit', ['view', 'model'], function (Dep, 
                         trim: true
                     });
 
-                    this.params.forEach(function (o) {
+                    this.createFieldView('text', 'tooltipText', null, {
+                        trim: true,
+                        rows: 1
+                    });
+
+                    this.paramList.forEach(function (o) {
                         if (o.hidden) {
                             return;
                         }
                         this.createFieldView(o.type, o.name, null, o);
                     }, this);
 
-                    this.wait(false);
+                    callback();
 
                 }.bind(this));
+            }.bind(this));
+        },
+
+        setup: function () {
+            this.scope = this.options.scope;
+            this.field = this.options.field;
+            this.type = this.options.type;
+
+            this.isNew = false;
+            if (!this.field) {
+                this.isNew = true;
+            }
+
+            this.wait(true);
+            this.setupFieldData(function () {
+                this.wait(false);
             }.bind(this));
         },
 
@@ -201,6 +220,12 @@ Espo.define('views/admin/field-manager/edit', ['view', 'model'], function (Dep, 
                 return;
             }
 
+            if (this.model.get('tooltipText') && this.model.get('tooltipText') !== '') {
+                this.model.set('tooltip', true);
+            } else {
+                this.model.set('tooltip', false);
+            }
+
             this.listenToOnce(this.model, 'sync', function () {
                 Espo.Ui.notify(false);
 
@@ -209,24 +234,64 @@ Espo.define('views/admin/field-manager/edit', ['view', 'model'], function (Dep, 
                     this.trigger('after:save');
                 }.bind(this), true);
 
-                var langData = this.getLanguage().data;
-                if (this.scope in langData) {
-                    if (!('fields' in langData[this.scope])) {
-                        langData[this.scope]['fields'] = {};
-                    }
-                    langData[this.scope]['fields'][this.model.get('name')] = this.model.get('label');
+                this.updateLanguage();
 
-
-                    if (this.getMetadata().get(['fields', this.model.get('type'), 'translatedOptions']) && this.model.get('translatedOptions')) {
-                        langData[this.scope].options = langData[this.scope].options || {};
-                        langData[this.scope]['options'][this.model.get('name')] = this.model.get('translatedOptions') || {};
-                    }
-                }
             }.bind(this));
 
             this.notify('Saving...');
             this.model.save();
         },
+
+        updateLanguage: function () {
+            var langData = this.getLanguage().data;
+            if (this.scope in langData) {
+                if (!('fields' in langData[this.scope])) {
+                    langData[this.scope]['fields'] = {};
+                }
+                langData[this.scope]['fields'][this.model.get('name')] = this.model.get('label');
+
+                if (!('tooltips' in langData[this.scope])) {
+                    langData[this.scope]['tooltips'] = {};
+                }
+                langData[this.scope]['tooltips'][this.model.get('name')] = this.model.get('tooltipText');
+
+                if (this.getMetadata().get(['fields', this.model.get('type'), 'translatedOptions']) && this.model.get('translatedOptions')) {
+                    langData[this.scope].options = langData[this.scope].options || {};
+                    langData[this.scope]['options'][this.model.get('name')] = this.model.get('translatedOptions') || {};
+                }
+            }
+        },
+
+        resetToDefault: function () {
+            if (!confirm(this.translate('confirmation', 'messages'))) return;
+
+            Espo.Ui.notify(this.translate('pleaseWait', 'messages'));
+
+            this.ajaxPostRequest('FieldManager/action/resetToDefault', {
+                scope: this.scope,
+                name: this.field
+            }).then(function () {
+                Promise.all([
+                    new Promise(function (resolve) {
+                        this.getMetadata().load(function () {
+                            this.getMetadata().storeToCache();
+                            resolve();
+                        }.bind(this), true);
+                    }.bind(this)),
+                    new Promise(function (resolve) {
+                        this.getLanguage().load(function () {
+                            resolve();
+                        }.bind(this), true);
+                    }.bind(this))
+                ]).then(function () {
+                    this.setupFieldData(function () {
+                        this.notify('Done', 'success');
+                        this.reRender();
+                    }.bind(this));
+                }.bind(this));
+
+            }.bind(this));
+        }
 
     });
 

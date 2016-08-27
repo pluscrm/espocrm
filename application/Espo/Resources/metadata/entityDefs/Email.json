@@ -90,10 +90,20 @@
             "notStorable": true,
             "default": false
         },
+        "folderId": {
+            "type": "varchar",
+            "notStorable": true,
+            "default": false
+        },
         "isUsers": {
             "type": "bool",
             "notStorable": true,
             "default": false
+        },
+        "folder": {
+            "type": "link",
+            "notStorable": true,
+            "readOnly": true
         },
         "nameHash": {
             "type": "text",
@@ -121,8 +131,7 @@
         "messageIdInternal": {
             "type": "varchar",
             "maxLength": 300,
-            "readOnly": true,
-            "index": true
+            "readOnly": true
         },
         "emailAddress": {
             "type": "base",
@@ -131,7 +140,7 @@
         },
         "fromEmailAddress": {
             "type": "link",
-            "view": "views/fields/from-email-address"
+            "view": "views/email/fields/from-email-address"
         },
         "toEmailAddresses": {
             "type": "linkMultiple"
@@ -189,6 +198,11 @@
             "readOnly": true,
             "view": "views/fields/user"
         },
+        "sentBy": {
+            "type": "link",
+            "readOnly": true,
+            "noLoad": true
+        },
         "modifiedBy": {
             "type": "link",
             "readOnly": true,
@@ -219,6 +233,11 @@
             "disabled": true,
             "notStorable": true
         },
+        "isBeingImported": {
+            "type": "bool",
+            "disabled": true,
+            "notStorable": true
+        },
         "teams": {
             "type": "linkMultiple",
             "view": "views/fields/teams"
@@ -229,13 +248,31 @@
             "layoutDetailDisabled": true,
             "layoutListDisabled": true,
             "layoutMassUpdateDisabled": true,
-            "readOnly": true
+            "readOnly": true,
+            "columns": {
+                "inTrash": "inTrash",
+                "folderId": "folderId"
+            }
         },
         "assignedUsers": {
             "type": "linkMultiple",
             "layoutListDisabled": true,
             "layoutMassUpdateDisabled": true,
             "readOnly": true
+        },
+        "inboundEmails": {
+            "type": "linkMultiple",
+            "layoutDetailDisabled": true,
+            "layoutListDisabled": true,
+            "layoutMassUpdateDisabled": true,
+            "noLoad": true
+        },
+        "emailAccounts": {
+            "type": "linkMultiple",
+            "layoutDetailDisabled": true,
+            "layoutListDisabled": true,
+            "layoutMassUpdateDisabled": true,
+            "noLoad": true
         }
     },
     "links": {
@@ -277,8 +314,17 @@
                 "inTrash": {
                     "type": "bool",
                     "default": false
+                },
+                "folderId": {
+                    "type": "varchar",
+                    "default": null,
+                    "maxLength": 24
                 }
             }
+        },
+        "sentBy": {
+            "type": "belongsTo",
+            "entity": "User"
         },
         "attachments": {
             "type": "hasChildren",
@@ -346,6 +392,16 @@
                     "len": "4"
                 }
             }
+        },
+        "inboundEmails": {
+            "type": "hasMany",
+            "entity": "InboundEmail",
+            "foreign": "emails"
+        },
+        "emailAccounts": {
+            "type": "hasMany",
+            "entity": "EmailAccount",
+            "foreign": "emails"
         }
     },
     "collection": {

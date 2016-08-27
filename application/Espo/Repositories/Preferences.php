@@ -34,13 +34,6 @@ use Espo\Core\Utils\Json;
 
 class Preferences extends \Espo\Core\ORM\Repository
 {
-    protected $dependencies = array(
-        'fileManager',
-        'metadata',
-        'config',
-        'entityManager'
-    );
-
     protected $defaultAttributeListFromSettings = array(
         'decimalMark',
         'thousandSeparator',
@@ -49,7 +42,18 @@ class Preferences extends \Espo\Core\ORM\Repository
 
     protected $data = array();
 
-    protected $entityName = 'Preferences';
+    protected $entityType = 'Preferences';
+
+    protected function init()
+    {
+        parent::init();
+        $this->addDependencyList([
+            'fileManager',
+            'metadata',
+            'config',
+            'entityManager'
+        ]);
+    }
 
     protected function getFileManager()
     {
@@ -118,7 +122,9 @@ class Preferences extends \Espo\Core\ORM\Repository
 
             $entity->set($this->data[$id]);
 
+
             $this->fetchAutoFollowEntityTypeList($entity);
+
 
             $entity->setAsFetched($this->data[$id]);
 
@@ -151,8 +157,6 @@ class Preferences extends \Espo\Core\ORM\Repository
     protected function storeAutoFollowEntityTypeList(Entity $entity)
     {
         $id = $entity->id;
-
-        $isChanged = false;
 
         $was = $entity->getFetched('autoFollowEntityTypeList');
         $became = $entity->get('autoFollowEntityTypeList');
@@ -200,7 +204,10 @@ class Preferences extends \Espo\Core\ORM\Repository
             $fileName = $this->getFilePath($entity->id);
             $this->getFileManager()->putContents($fileName, Json::encode($data, \JSON_PRETTY_PRINT));
 
-            $this->storeAutoFollowEntityTypeList($entity);
+            $user = $this->getEntityManger()->getEntity('User', $entity->id);
+            if ($user && !$user->get('isPortalUser')) {
+                $this->storeAutoFollowEntityTypeList($entity);
+            }
 
             return $entity;
         }

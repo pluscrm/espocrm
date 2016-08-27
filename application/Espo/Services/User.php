@@ -41,7 +41,9 @@ class User extends Record
 
     protected function init()
     {
-        $this->dependencies[] = 'container';
+        parent::init();
+
+        $this->addDependency('container');
     }
 
     protected $internalAttributeList = ['password'];
@@ -349,7 +351,7 @@ class User extends Record
         $body = str_replace('{userName}', $user->get('userName'), $body);
         $body = str_replace('{password}', $password, $body);
 
-        $siteUrl = $this->getConfig()->get('siteUrl');
+        $siteUrl = $this->getConfig()->getSiteUrl() . '/';
 
         if ($user->get('isPortalUser')) {
             $urlList = [];
@@ -361,9 +363,13 @@ class User extends Record
                 if ($portal->get('customUrl')) {
                     $urlList[] = $portal->get('customUrl');
                 } else {
-                    $url = $siteUrl . '?entryPoint=portal';
+                    $url = $siteUrl . 'portal/';
                     if ($this->getConfig()->get('defaultPortalId') !== $portal->id) {
-                        $url .= '&id=' . $portal->id;
+                        if ($portal->get('customId')) {
+                            $url .= $portal->get('customId');
+                        } else {
+                            $url .= $portal->id;
+                        }
                     }
                     $urlList[] = $url;
                 }
@@ -431,6 +437,22 @@ class User extends Record
         if (array_key_exists('rolesIds', $data) || array_key_exists('teamsIds', $data) || array_key_exists('isAdmin', $data)) {
             $this->clearRoleCache($entity->id);
         }
+
+        if ($entity->get('isPortalUser') && $entity->get('contactId')) {
+            if (array_key_exists('firstName', $data) || array_key_exists('lastName', $data) || array_key_exists('salutationName', $data)) {
+                $contact = $this->getEntityManager()->getEntity('Contact', $entity->get('contactId'));
+                if (array_key_exists('firstName', $data)) {
+                    $contact->set('firstName', $data['firstName']);
+                }
+                if (array_key_exists('lastName', $data)) {
+                    $contact->set('lastName', $data['lastName']);
+                }
+                if (array_key_exists('salutationName', $data)) {
+                    $contact->set('salutationName', $data['salutationName']);
+                }
+                $this->getEntityManager()->saveEntity($contact);
+            }
+        }
     }
 
     protected function clearRoleCache($id)
@@ -438,7 +460,7 @@ class User extends Record
         $this->getFileManager()->removeFile('data/cache/application/acl/' . $id . '.php');
     }
 
-    protected function afterMassUpdate(array $idList, array $data)
+    protected function afterMassUpdate(array $idList, array $data = array())
     {
         parent::afterMassUpdate($idList, $data);
 

@@ -28,42 +28,47 @@
  ************************************************************************/
 
 namespace Espo\Core\Utils\Authentication;
-use Espo\Core\Exceptions\Error,
-    Espo\Core\Utils\Config,
-    Espo\Core\ORM\EntityManager,
-    Espo\Core\Utils\Auth;
+
+use Espo\Core\Exceptions\Error;
+use Espo\Core\Utils\Config;
+use Espo\Core\ORM\EntityManager;
+use Espo\Core\Utils\Auth;
 
 class LDAP extends Base
 {
     private $utils;
 
-    private $zendLdap;
+    private $ldapClient;
 
     /**
-     * Espo => LDAP name
+     * User field name  => option name (LDAP attribute)
      *
      * @var array
      */
-    private $fields = array(
-        'userName' => 'cn',
-        'firstName' => 'givenname',
-        'lastName' => 'sn',
-        'title' => 'title',
-        'emailAddress' => 'mail',
-        'phoneNumber' => 'telephonenumber',
+    protected $ldapFieldMap = array(
+        'userName' => 'userNameAttribute',
+        'firstName' => 'userFirstNameAttribute',
+        'lastName' => 'userLastNameAttribute',
+        'title' => 'userTitleAttribute',
+        'emailAddress' => 'userEmailAddressAttribute',
+        'phoneNumber' => 'userPhoneNumberAttribute',
+    );
+
+    /**
+     * User field name => option name
+     *
+     * @var array
+     */
+    protected $userFieldMap = array(
+        'teamsIds' => 'userTeamsIds',
+        'defaultTeamId' => 'userDefaultTeamId',
     );
 
     public function __construct(Config $config, EntityManager $entityManager, Auth $auth)
     {
         parent::__construct($config, $entityManager, $auth);
 
-        $this->zendLdap = new LDAP\LDAP();
         $this->utils = new LDAP\Utils($config);
-    }
-
-    protected function getZendLdap()
-    {
-        return $this->zendLdap;
     }
 
     protected function getUtils()
@@ -71,6 +76,20 @@ class LDAP extends Base
         return $this->utils;
     }
 
+    protected function getLdapClient()
+    {
+        if (!isset($this->ldapClient)) {
+            $options = $this->getUtils()->getLdapClientOptions();
+
+            try {
+                $this->ldapClient = new LDAP\Client($options);
+            } catch (\Exception $e) {
+                $GLOBALS['log']->error('LDAP error: ' . $e->getMessage());
+            }
+        }
+
+        return $this->ldapClient;
+    }
 
     /**
      * LDAP login
@@ -78,6 +97,7 @@ class LDAP extends Base
      * @param  string $username
      * @param  string $password
      * @param  \Espo\Entities\AuthToken $authToken
+     *
      * @return \Espo\Entities\User | null
      */
     public function login($username, $password, \Espo\Entities\AuthToken $authToken = null)
@@ -86,28 +106,36 @@ class LDAP extends Base
             return $this->loginByToken($username, $authToken);
         }
 
-        $options = $this->getUtils()->getZendOptions();
+        $ldapClient = $this->getLdapClient();
 
-        $ldap = $this->getZendLdap();
-        $ldap = $ldap->setOptions($options);
-
+        //login LDAP system user (ldapUsername, ldapPassword)
         try {
-            $ldap->bind($username, $password);
+            $ldapClient->bind();
+        } catch (\Exception $e) {
+            $options = $this->getUtils()->getLdapClientOptions();
+            $GLOBALS['log']->error('LDAP: Could not connect to LDAP server ['.$options['host'].'], details: ' . $e->getMessage());
 
-            $dn = $ldap->getDn($username);
-
-            $loginFilter = $this->getUtils()->getOption('userLoginFilter');
-            $userData = $ldap->searchByLoginFilter($loginFilter, $dn, 3);
-
-        } catch (\Zend\Ldap\Exception\LdapException $zle) {
-
-            $admin = $this->adminLogin($username, $password);
-            if (!isset($admin)) {
-                $GLOBALS['log']->info('LDAP Authentication: ' . $zle->getMessage());
+            $adminUser = $this->adminLogin($username, $password);
+            if (!isset($adminUser)) {
                 return null;
             }
+            $GLOBALS['log']->info('LDAP: Administrator ['.$username.'] was logged in by Espo method.');
+        }
 
-            $GLOBALS['log']->info('LDAP Authentication: Administrator login by username ['.$username.']');
+        if (!isset($adminUser)) {
+            $userDn = $this->findLdapUserDnByUsername($username);
+            $GLOBALS['log']->debug('Found DN for ['.$username.']: ['.$userDn.'].');
+            if (!isset($userDn)) {
+                $GLOBALS['log']->error('LDAP: Authentication failed for user ['.$username.'], details: user is not found.');
+                return;
+            }
+
+            try {
+                $ldapClient->bind($userDn, $password);
+            } catch (\Exception $e) {
+                $GLOBALS['log']->error('LDAP: Authentication failed for user ['.$username.'], details: ' . $e->getMessage());
+                return null;
+            }
         }
 
         $user = $this->getEntityManager()->getRepository('User')->findOne(array(
@@ -118,7 +146,7 @@ class LDAP extends Base
 
         $isCreateUser = $this->getUtils()->getOption('createEspoUser');
         if (!isset($user) && $isCreateUser) {
-            $this->getAuth()->useNoAuth(); /** Required to fix Acl "isFetched()" error */
+            $userData = $ldapClient->getEntry($userDn);
             $user = $this->createUser($userData);
         }
 
@@ -130,6 +158,7 @@ class LDAP extends Base
      *
      * @param  string $username
      * @param  \Espo\Entities\AuthToken $authToken
+     *
      * @return \Espo\Entities\User | null
      */
     protected function loginByToken($username, \Espo\Entities\AuthToken $authToken = null)
@@ -182,15 +211,31 @@ class LDAP extends Base
      * Create Espo user with data gets from LDAP server
      *
      * @param  array $userData LDAP entity data
+     *
      * @return \Espo\Entities\User
      */
     protected function createUser(array $userData)
     {
+        $GLOBALS['log']->info('Creating new user ...');
         $data = array();
-        foreach ($this->fields as $espo => $ldap) {
+
+        // show full array of the LDAP user
+        $GLOBALS['log']->debug('LDAP: user data: ' .print_r($userData, true));
+
+        //set values from ldap server
+        $ldapFields = $this->loadFields('ldap');
+        foreach ($ldapFields as $espo => $ldap) {
+            $ldap = strtolower($ldap);
             if (isset($userData[$ldap][0])) {
+                $GLOBALS['log']->debug('LDAP: Create a user wtih ['.$espo.'] = ['.$userData[$ldap][0].'].');
                 $data[$espo] = $userData[$ldap][0];
             }
+        }
+
+        //set user fields
+        $userFields = $this->loadFields('user');
+        foreach ($userFields as $fieldName => $fieldValue) {
+            $data[$fieldName] = $fieldValue;
         }
 
         $user = $this->getEntityManager()->getEntity('User');
@@ -198,10 +243,74 @@ class LDAP extends Base
 
         $this->getEntityManager()->saveEntity($user);
 
-        return $user;
+        return $this->getEntityManager()->getEntity('User', $user->id);
     }
 
+    /**
+     * Find LDAP user DN by his username
+     *
+     * @param  string $username
+     *
+     * @return string | null
+     */
+    protected function findLdapUserDnByUsername($username)
+    {
+        $ldapClient = $this->getLdapClient();
+        $options = $this->getUtils()->getOptions();
 
+        $loginFilterString = '';
+        if (!empty($options['userLoginFilter'])) {
+            $loginFilterString = $this->convertToFilterFormat($options['userLoginFilter']);
+        }
 
+        $searchString = '(&(objectClass='.$options['userObjectClass'].')('.$options['userNameAttribute'].'='.$username.')'.$loginFilterString.')';
+        $result = $ldapClient->search($searchString, null, LDAP\Client::SEARCH_SCOPE_SUB);
+        $GLOBALS['log']->debug('LDAP: user search string: "' . $searchString . '"');
+
+        foreach ($result as $item) {
+            return $item["dn"];
+        }
+    }
+
+    /**
+     * Check and convert filter item into LDAP format
+     *
+     * @param  string $filter E.g. "memberof=CN=externalTesters,OU=groups,DC=espo,DC=local"
+     *
+     * @return string
+     */
+    protected function convertToFilterFormat($filter)
+    {
+        $filter = trim($filter);
+        if (substr($filter, 0, 1) != '(') {
+            $filter = '(' . $filter;
+        }
+        if (substr($filter, -1) != ')') {
+            $filter = $filter . ')';
+        }
+        return $filter;
+    }
+
+    /**
+     * Load fields for a user
+     *
+     * @param  string $type
+     *
+     * @return array
+     */
+    protected function loadFields($type)
+    {
+        $options = $this->getUtils()->getOptions();
+
+        $typeMap = $type . 'FieldMap';
+
+        $fields = array();
+        foreach ($this->$typeMap as $fieldName => $fieldValue) {
+            if (isset($options[$fieldValue])) {
+                $fields[$fieldName] = $options[$fieldValue];
+            }
+        }
+
+        return $fields;
+    }
 }
-

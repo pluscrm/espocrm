@@ -40,15 +40,19 @@ class Stream extends \Espo\Core\Services\Base
 
     protected $statusFields = null;
 
-    protected $dependencies = array(
-        'entityManager',
-        'config',
-        'user',
-        'metadata',
-        'acl',
-        'aclManager',
-        'container',
-    );
+    protected function init()
+    {
+        parent::init();
+        $this->addDependencyList([
+            'entityManager',
+            'config',
+            'user',
+            'metadata',
+            'acl',
+            'aclManager',
+            'container'
+        ]);
+    }
 
     protected $emailsWithContentEntityList = ['Case'];
 
@@ -269,7 +273,7 @@ class Stream extends \Espo\Core\Services\Base
         $sql = "
             DELETE FROM subscription
             WHERE
-                entity_id = " . $pdo->quote($entity->id) . " AND entity_type = " . $pdo->quote($entity->getEntityName()) . "
+                entity_id = " . $pdo->quote($entity->id) . " AND entity_type = " . $pdo->quote($entity->getEntityType()) . "
         ";
         $sth = $pdo->prepare($sql)->execute();
     }
@@ -295,7 +299,7 @@ class Stream extends \Espo\Core\Services\Base
 
         $select = [
             'id', 'number', 'type', 'post', 'data', 'parentType', 'parentId', 'relatedType', 'relatedId',
-            'targetType', 'createdAt', 'createdById', 'createdByName', 'isGlobal', 'isInternal'
+            'targetType', 'createdAt', 'createdById', 'createdByName', 'isGlobal', 'isInternal', 'createdByGender'
         ];
 
         $selectParamsList = [];
@@ -988,6 +992,34 @@ class Stream extends \Espo\Core\Services\Base
         }
     }
 
+    public function getEntityFolowerIdList(Entity $entity)
+    {
+        $query = $this->getEntityManager()->getQuery();
+        $pdo = $this->getEntityManager()->getPDO();
+        $sql = $query->createSelectQuery('User', array(
+            'select' => ['id'],
+            'customJoin' => "
+                JOIN subscription AS `subscription` ON
+                    subscription.user_id = user.id AND
+                    subscription.entity_id = ".$query->quote($entity->id)." AND
+                    subscription.entity_type = ".$query->quote($entity->getEntityType())."
+            ",
+            'whereClause' => array(
+                'isActive' => true
+            )
+        ));
+
+        $sth = $pdo->prepare($sql);
+        $sth->execute();
+
+        $idList = [];
+        while ($row = $sth->fetch(\PDO::FETCH_ASSOC)) {
+            $idList[] = $row['id'];
+        }
+
+        return $idList;
+    }
+
     public function getEntityFollowers(Entity $entity, $offset = 0, $limit = false)
     {
         $query = $this->getEntityManager()->getQuery();
@@ -1046,6 +1078,39 @@ class Stream extends \Espo\Core\Services\Base
             }
         }
         return $ignoreScopeList;
+    }
+
+    public function controlFollowersJob($data)
+    {
+        if (empty($data)) {
+            return;
+        }
+        if (empty($data['entityId']) || empty($data['entityType'])) {
+            return;
+        }
+        $entity = $this->getEntityManager()->getEntity($data['entityType'], $data['entityId']);
+        if (!$entity) return;
+
+        $idList = $this->getEntityFolowerIdList($entity);
+
+        $userList = $this->getEntityManager()->getRepository('User')->where(array(
+            'id' => $idList
+        ))->find();
+
+        foreach ($userList as $user) {
+            if (!$user->get('isActive')) {
+                $this->unfollowEntity($entity, $user->id);
+                continue;
+            }
+
+            if (!$user->get('isPortalUser')) {
+                if (!$this->getAclManager()->check($user, $entity, 'stream')) {
+                    $this->unfollowEntity($entity, $user->id);
+                    continue;
+                }
+            }
+        }
+
     }
 }
 

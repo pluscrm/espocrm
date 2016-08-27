@@ -50,7 +50,9 @@ Espo.define('views/fields/entity-type-list', 'views/fields/multi-enum', function
         },
 
         setup: function () {
-            this.params.translation = 'Global.scopeNames';
+            if (!this.params.translation) {
+                this.params.translation = 'Global.scopeNames';
+            }
             this.setupOptions();
             Dep.prototype.setup.call(this);
         }

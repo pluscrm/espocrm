@@ -184,7 +184,7 @@ class AclManager
         return $this->getImplementation($entity->getEntityType())->checkIsOwner($user, $entity);
     }
 
-    public function checkInTeam(User $user, Entity $entity, $action)
+    public function checkInTeam(User $user, Entity $entity)
     {
         return $this->getImplementation($entity->getEntityType())->checkInTeam($user, $entity);
     }
@@ -234,6 +234,41 @@ class AclManager
     {
         if ($user->isAdmin()) return [];
         return $this->getTable($user)->getScopeForbiddenFieldList($scope, $action, $thresholdLevel);
+    }
+
+    public function checkUserPermission(User $user, $target, $permissionType = 'userPermission')
+    {
+        $permission = $this->get($user, $permissionType);
+
+        if (is_object($target)) {
+            $userId = $target->id;
+        } else {
+            $userId = $target;
+        }
+
+        if ($user->id === $userId) return true;
+
+        if ($permission === 'no') {
+            return false;
+        }
+
+        if ($permission === 'yes') {
+            return true;
+        }
+
+        if ($permission === 'team') {
+            $teamIdList = $user->getLinkMultipleIdList('teams');
+            if (!$this->getContainer()->get('entityManager')->getRepository('User')->checkBelongsToAnyOfTeams($userId, $teamIdList)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function checkAssignmentPermission(User $user, $target)
+    {
+        return $this->checkUserPermission($user, $target, 'assignmentPermission');
     }
 }
 

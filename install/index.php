@@ -61,7 +61,7 @@ $config = include('core/config.php');
 require_once 'core/SystemHelper.php';
 $systemHelper = new SystemHelper();
 
-if (version_compare(PHP_VERSION, '5.4.0', '<')) {
+if (version_compare(PHP_VERSION, '5.5.0', '<')) {
     die(str_replace('{minVersion}', $config['requirements']['phpVersion'], $langs['messages']['phpVersion']) . '.');
 }
 
@@ -151,6 +151,5 @@ if (!empty($actionFile) && file_exists('install/core/tpl/'.$tplName)) {
 	$isBuilt = file_exists('client/espo.min.js');
 	$smarty->assign('isBuilt', $isBuilt);
 
-	ob_clean();
 	$smarty->display('index.tpl');
 }

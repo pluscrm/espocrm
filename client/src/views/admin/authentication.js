@@ -38,14 +38,14 @@ Espo.define('views/admin/authentication', 'views/settings/record/edit', function
                     true: [
                         {
                             action: 'show',
-                            fields: ['ldapUsername', 'ldapPassword']
+                            fields: ['ldapUsername', 'ldapPassword', 'testConnection']
                         }
                     ]
                 },
                 default: [
                     {
                         action: 'hide',
-                        fields: ['ldapUsername', 'ldapPassword']
+                        fields: ['ldapUsername', 'ldapPassword', 'testConnection']
                     }
                 ]
             },
@@ -70,7 +70,23 @@ Espo.define('views/admin/authentication', 'views/settings/record/edit', function
                         fields: ['ldapAccountDomainName', 'ldapAccountDomainNameShort']
                     }
                 ]
-            }
+            },
+            'ldapCreateEspoUser': {
+                map: {
+                    true: [
+                        {
+                            action: 'show',
+                            fields: ['ldapUserTitleAttribute', 'ldapUserFirstNameAttribute', 'ldapUserLastNameAttribute', 'ldapUserEmailAddressAttribute', 'ldapUserPhoneNumberAttribute', 'ldapUserTeams', 'ldapUserDefaultTeam']
+                        }
+                    ]
+                },
+                default: [
+                    {
+                        action: 'hide',
+                        fields: ['ldapUserTitleAttribute', 'ldapUserFirstNameAttribute', 'ldapUserLastNameAttribute', 'ldapUserEmailAddressAttribute', 'ldapUserPhoneNumberAttribute', 'ldapUserTeams', 'ldapUserDefaultTeam']
+                    }
+                ]
+            },
         },
 
         setup: function () {

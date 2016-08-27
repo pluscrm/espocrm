@@ -88,12 +88,12 @@ abstract class Mapper implements IMapper
 
     public function max(IEntity $entity, $params = array(), $field, $deleted = false)
     {
-        return $this->aggregate($entity, $params, 'MAX', $field, true);
+        return $this->aggregate($entity, $params, 'MAX', $field, $deleted);
     }
 
     public function min(IEntity $entity, $params = array(), $field, $deleted = false)
     {
-        return $this->aggregate($entity, $params, 'MIN', $field, true);
+        return $this->aggregate($entity, $params, 'MIN', $field, $deleted);
     }
 
     public function sum(IEntity $entity, $params = array())
@@ -303,17 +303,18 @@ abstract class Mapper implements IMapper
         return $this->removeRelation($entityFrom, $relationName, null, false, $entityTo);
     }
 
-    public function updateRelation(IEntity $entity, $relationName, $id = null, array $columnData)
+    public function updateRelation(IEntity $entity, $relationName, $id = null, $columnData)
     {
         if (empty($id) || empty($relationName)) {
             return false;
         }
 
+        if (empty($columnData)) return;
+
         $relOpt = $entity->relations[$relationName];
         $keySet = $this->query->getKeys($entity, $relationName);
 
         $relType = $relOpt['type'];
-
 
         switch ($relType) {
             case IEntity::MANY_MANY:

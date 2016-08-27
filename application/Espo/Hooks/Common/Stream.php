@@ -47,7 +47,8 @@ class Stream extends \Espo\Core\Hooks\Base
 
     protected function init()
     {
-        $this->dependencies[] = 'serviceFactory';
+        parent::init();
+        $this->addDependency('serviceFactory');
     }
 
     protected function getServiceFactory()
@@ -57,11 +58,11 @@ class Stream extends \Espo\Core\Hooks\Base
 
     protected function checkHasStream(Entity $entity)
     {
-        $entityName = $entity->getEntityName();
-        if (!array_key_exists($entityName, $this->hasStreamCache)) {
-            $this->hasStreamCache[$entityName] = $this->getMetadata()->get("scopes.{$entityName}.stream");
+        $entityType = $entity->getEntityType();
+        if (!array_key_exists($entityType, $this->hasStreamCache)) {
+            $this->hasStreamCache[$entityType] = $this->getMetadata()->get("scopes.{$entityType}.stream");
         }
-        return $this->hasStreamCache[$entityName];
+        return $this->hasStreamCache[$entityType];
     }
 
     protected function isLinkObservableInStream($scope, $link)
@@ -176,7 +177,11 @@ class Stream extends \Espo\Core\Hooks\Base
                 $assignedUserId = $entity->get('assignedUserId');
                 $createdById = $entity->get('createdById');
 
-                if ($this->getConfig()->get('followCreatedEntities') && !empty($createdById)) {
+                if (
+                    ($this->getConfig()->get('followCreatedEntities') || $this->getUser()->get('isPortalUser'))
+                    &&
+                    !empty($createdById)
+                ) {
                     $userIdList[] = $createdById;
                 }
                 if (!empty($assignedUserId) && !in_array($assignedUserId, $userIdList)) {
@@ -241,6 +246,36 @@ class Stream extends \Espo\Core\Hooks\Base
                             $this->getStreamService()->noteStatus($entity, $field);
                         }
                     }
+                }
+
+                $methodName = 'isChangedWithAclAffect';
+                if (
+                    (
+                        method_exists($entity, $methodName) && $entity->$methodName()
+                    )
+                    ||
+                    (
+                        !method_exists($entity, $methodName)
+                        &&
+                        (
+                            $entity->isAttributeChanged('assignedUserId')
+                            ||
+                            $entity->isAttributeChanged('teamsIds')
+                            ||
+                            $entity->isAttributeChanged('assignedUsersIds')
+                        )
+                    )
+                ) {
+                    $job = $this->getEntityManager()->getEntity('Job');
+                    $job->set(array(
+                        'serviceName' => 'Stream',
+                        'method' => 'controlFollowersJob',
+                        'data' => array(
+                            'entityType' => $entity->getEntityType(),
+                            'entityId' => $entity->id
+                        )
+                    ));
+                    $this->getEntityManager()->saveEntity($job);
                 }
             }
 

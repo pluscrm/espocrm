@@ -57,7 +57,16 @@ class Utils
         'tryUsernameSplit' => 'ldapTryUsernameSplit',
         'networkTimeout' => 'ldapNetworkTimeout',
         'createEspoUser' => 'ldapCreateEspoUser',
+        'userNameAttribute' => 'ldapUserNameAttribute',
+        'userTitleAttribute' => 'ldapUserTitleAttribute',
+        'userFirstNameAttribute' => 'ldapUserFirstNameAttribute',
+        'userLastNameAttribute' => 'ldapUserLastNameAttribute',
+        'userEmailAddressAttribute' => 'ldapUserEmailAddressAttribute',
+        'userPhoneNumberAttribute' => 'ldapUserPhoneNumberAttribute',
         'userLoginFilter' => 'ldapUserLoginFilter',
+        'userTeamsIds' => 'ldapUserTeamsIds',
+        'userDefaultTeamId' => 'ldapUserDefaultTeamId',
+        'userObjectClass' => 'ldapUserObjectClass',
     );
 
     /**
@@ -66,8 +75,17 @@ class Utils
      * @var array
      */
     protected $permittedEspoOptions = array(
-        'createEspoUser' => false,
-        'userLoginFilter' => null,
+        'createEspoUser',
+        'userNameAttribute',
+        'userObjectClass',
+        'userTitleAttribute',
+        'userFirstNameAttribute',
+        'userLastNameAttribute',
+        'userEmailAddressAttribute',
+        'userPhoneNumberAttribute',
+        'userLoginFilter',
+        'userTeamsIds',
+        'userDefaultTeamId',
     );
 
     /**
@@ -83,9 +101,11 @@ class Utils
     );
 
 
-    public function __construct(Config $config)
+    public function __construct(Config $config = null)
     {
-        $this->config = $config;
+        if (isset($config)) {
+            $this->config = $config;
+        }
     }
 
     protected function getConfig()
@@ -113,14 +133,25 @@ class Utils
             }
         }
 
-        /** peculiar fields */
+        $this->options = $this->normalizeOptions($options);
+
+        return $this->options;
+    }
+
+    /**
+     * Normalize options to LDAP client format
+     *
+     * @param  array  $options
+     *
+     * @return array
+     */
+    public function normalizeOptions(array $options)
+    {
         $options['useSsl'] = (bool) ($options['useSsl'] == 'SSL');
         $options['useStartTls'] = (bool) ($options['useStartTls'] == 'TLS');
         $options['accountCanonicalForm'] = $this->accountCanonicalFormMap[ $options['accountCanonicalForm'] ];
 
-        $this->options = $options;
-
-        return $this->options;
+        return $options;
     }
 
     /**
@@ -148,12 +179,10 @@ class Utils
      *
      * @return array
      */
-    public function getZendOptions()
+    public function getLdapClientOptions()
     {
         $options = $this->getOptions();
-        $espoOptions = array_keys($this->permittedEspoOptions);
-
-        $zendOptions = array_diff_key($options, array_flip($espoOptions));
+        $zendOptions = array_diff_key($options, array_flip($this->permittedEspoOptions));
 
         return $zendOptions;
     }

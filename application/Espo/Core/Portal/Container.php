@@ -38,12 +38,27 @@ class Container extends \Espo\Core\Container
         return $className;
     }
 
+    protected function getServiceMainClassName($name, $default)
+    {
+        $metadata = $this->get('metadata');
+        $className = $metadata->get('app.serviceContainer.classNames.' . $name, $default);
+        return $className;
+    }
+
     protected function loadAclManager()
     {
         $className = $this->getServiceClassName('aclManager', '\\Espo\\Core\\Portal\\AclManager');
-        return new $className(
+        $mainClassName = $this->getServiceMainClassName('aclManager', '\\Espo\\Core\\AclManager');
+
+        $obj = new $className(
             $this->get('container')
         );
+        $objMain = new $mainClassName(
+            $this->get('container')
+        );
+        $obj->setMainManager($objMain);
+
+        return $obj;
     }
 
     protected function loadAcl()
@@ -76,10 +91,10 @@ class Container extends \Espo\Core\Container
     protected function loadLanguage()
     {
         $language = new \Espo\Core\Portal\Utils\Language(
+            \Espo\Core\Utils\Language::detectLanguage($this->get('config'), $this->get('preferences')),
             $this->get('fileManager'),
-            $this->get('config'),
             $this->get('metadata'),
-            $this->get('preferences')
+            $this->get('useCache')
         );
         $language->setPortal($this->get('portal'));
         return $language;

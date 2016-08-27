@@ -73,6 +73,11 @@ class FieldManager
         return $this->metadataHelper;
     }
 
+    protected function getDefaultLanguage()
+    {
+        return $this->container->get('defaultLanguage');
+    }
+
     public function read($name, $scope)
     {
         $fieldDefs = $this->getFieldDefs($name, $scope);
@@ -108,6 +113,9 @@ class FieldManager
         if (isset($fieldDefs['label'])) {
             $this->setLabel($name, $fieldDefs['label'], $scope);
         }
+        if (isset($fieldDefs['tooltipText'])) {
+            $this->setTooltipText($name, $fieldDefs['tooltipText'], $scope);
+        }
 
         $type = isset($fieldDefs['type']) ? $fieldDefs['type'] : $type = $this->getMetadata()->get(['entityDefs', $scope, 'fields', $name, 'type']);
 
@@ -119,8 +127,14 @@ class FieldManager
             }
         }
 
-        if (isset($fieldDefs['label']) || isset($fieldDefs['translatedOptions'])) {
+        if (
+            isset($fieldDefs['label']) || isset($fieldDefs['translatedOptions']) || isset($fieldDefs['tooltipText'])
+        ) {
             $res &= $this->getLanguage()->save();
+
+            if (isset($fieldDefs['tooltipText'])) {
+                $this->getDefaultLanguage()->save();
+            }
 
             $this->processHook('afterSave', $type, $scope, $name, $fieldDefs);
         }
@@ -156,6 +170,28 @@ class FieldManager
         return (bool) $res;
     }
 
+    public function resetToDefault($name, $scope)
+    {
+        if (!$this->isCore($name, $scope)) {
+            throw new Error('Cannot reset to default custom field ['.$name.'] in '.$scope);
+        }
+
+        if (!$this->getMetadata()->get(['entityDefs', $scope, 'fields', $name])) {
+            throw new Error('Not found field ['.$name.'] in '.$scope);
+        }
+
+        $this->getMetadata()->delete('entityDefs', $scope, ['fields.' . $name]);
+        $this->getMetadata()->save();
+
+        $this->getLanguage()->delete($scope, 'fields', $name);
+        $this->getLanguage()->delete($scope, 'options', $name);
+        $this->getLanguage()->delete($scope, 'tooltips', $name);
+        $this->getDefaultLanguage()->delete($scope, 'tooltips', $name);
+
+        $this->getLanguage()->save();
+        $this->getDefaultLanguage()->save();
+    }
+
     protected function setEntityDefs($name, $fieldDefs, $scope)
     {
         $fieldDefs = $this->normalizeDefs($name, $fieldDefs, $scope);
@@ -168,7 +204,7 @@ class FieldManager
 
     protected function setTranslatedOptions($name, $value, $scope)
     {
-        return $this->getLanguage()->set($scope, 'options', $name, $value);
+        $this->getLanguage()->set($scope, 'options', $name, $value);
     }
 
     protected function setLabel($name, $value, $scope)
@@ -176,11 +212,26 @@ class FieldManager
         return $this->getLanguage()->set($scope, 'fields', $name, $value);
     }
 
+    protected function setTooltipText($name, $value, $scope)
+    {
+        if ($value && $value !== '') {
+            $this->getLanguage()->set($scope, 'tooltips', $name, $value);
+            $this->getDefaultLanguage()->set($scope, 'tooltips', $name, $value);
+        } else {
+            $this->getLanguage()->delete($scope, 'tooltips', $name);
+            $this->getDefaultLanguage()->delete($scope, 'tooltips', $name);
+        }
+    }
+
     protected function deleteLabel($name, $scope)
     {
         $this->getLanguage()->delete($scope, 'fields', $name);
+        $this->getLanguage()->delete($scope, 'tooltips', $name);
         $this->getLanguage()->delete($scope, 'options', $name);
-        return $this->getLanguage()->save();
+        $this->getDefaultLanguage()->delete($scope, 'tooltips', $name);
+
+        $this->getLanguage()->save();
+        $this->getDefaultLanguage()->save();
     }
 
     protected function getFieldDefs($name, $scope)

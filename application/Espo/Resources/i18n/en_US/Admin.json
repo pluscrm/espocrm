@@ -106,6 +106,7 @@
         "type": "Type",
         "name": "Name",
         "label": "Label",
+        "tooltipText": "Tooltip Text",
         "required": "Required",
         "default": "Default",
         "maxLength": "Max Length",
@@ -134,7 +135,8 @@
         "sourceList": "Source List",
         "prefix": "Prefix",
         "nextNumber": "Next Number",
-        "padLength": "Pad Length"
+        "padLength": "Pad Length",
+        "disableFormatting": "Disable Formatting"
     },
     "messages": {
         "upgradeVersion": "Your EspoCRM will be upgraded to version <strong>{version}</strong>. This can take some time.",
