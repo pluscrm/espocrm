@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('views/record/base', ['view', 'view-record-helper'], function (Dep, ViewRecordHelper) {
+Espo.define('views/record/base', ['view', 'view-record-helper', 'dynamic-logic'], function (Dep, ViewRecordHelper, DynamicLogic) {
 
     return Dep.extend({
 
@@ -39,6 +39,8 @@ Espo.define('views/record/base', ['view', 'view-record-helper'], function (Dep, 
         isNew: false,
 
         dependencyDefs: {},
+
+        dynamicLogicDefs: {},
 
         fieldList: null,
 
@@ -170,6 +172,28 @@ Espo.define('views/record/base', ['view', 'view-record-helper'], function (Dep, 
             }
         },
 
+        setFieldOptionList: function (name, list) {
+            this.recordHelper.setFieldOptionList(name, list);
+
+            var view = this.getFieldView(name);
+            if (view) {
+                if ('setOptionList' in view) {
+                    view.setOptionList(list);
+                }
+            }
+        },
+
+        resetFieldOptionList: function (name) {
+            this.recordHelper.clearFieldOptionList(name);
+
+            var view = this.getFieldView(name);
+            if (view) {
+                if ('resetOptionList' in view) {
+                    view.resetOptionList();
+                }
+            }
+        },
+
         showPanel: function (name) {
             this.recordHelper.setPanelStateParam(name, 'hidden', false);
             if (this.isRendered()) {
@@ -261,10 +285,24 @@ Espo.define('views/record/base', ['view', 'view-record-helper'], function (Dep, 
             }
 
             this.initDependancy();
+            this.initDynamicLogic();
         },
 
         checkAttributeIsChanged: function (name) {
             return !_.isEqual(this.attributes[name], this.model.get(name));
+        },
+
+        initDynamicLogic: function () {
+            if (!Object.keys(this.dynamicLogicDefs || {}).length) return;
+
+            this.dynamicLogic = new DynamicLogic(this.dynamicLogicDefs, this);
+
+            this.listenTo(this.model, 'change', this.processDynamicLogic, this);
+            this.processDynamicLogic();
+        },
+
+        processDynamicLogic: function () {
+            this.dynamicLogic.process();
         },
 
         applyDependancy: function () {
@@ -460,8 +498,17 @@ Espo.define('views/record/base', ['view', 'view-record-helper'], function (Dep, 
 
             if (!this.getUser().get('portalId')) {
                 if (this.model.hasField('assignedUser')) {
-                    defaultHash['assignedUserId'] = this.getUser().id;
-                    defaultHash['assignedUserName'] = this.getUser().get('name');
+                    var fillAssignedUser = true;
+                    if (this.getPreferences().get('doNotFillAssignedUserIfNotRequired')) {
+                        fillAssignedUser = false;
+                        if (this.model.getFieldParam('assignedUser', 'required')) {
+                            fillAssignedUser = true;
+                        }
+                    }
+                    if (fillAssignedUser) {
+                        defaultHash['assignedUserId'] = this.getUser().id;
+                        defaultHash['assignedUserName'] = this.getUser().get('name');
+                    }
                 }
                 var defaultTeamId = this.getUser().get('defaultTeamId');
                 if (defaultTeamId) {

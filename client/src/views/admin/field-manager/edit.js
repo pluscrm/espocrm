@@ -44,6 +44,7 @@ Espo.define('views/admin/field-manager/edit', ['view', 'model'], function (Dep, 
                 fieldList: this.fieldList,
                 isCustom: this.defs.isCustom,
                 isNew: this.isNew,
+                hasDynamicLogicPanel: this.hasDynamicLogicPanel
             };
         },
 
@@ -56,7 +57,7 @@ Espo.define('views/admin/field-manager/edit', ['view', 'model'], function (Dep, 
             },
             'click button[data-action="resetToDefault"]': function () {
                 this.resetToDefault();
-            },
+            }
         },
 
         setupFieldData: function (callback) {
@@ -147,6 +148,63 @@ Espo.define('views/admin/field-manager/edit', ['view', 'model'], function (Dep, 
                         this.createFieldView(o.type, o.name, null, o);
                     }, this);
 
+                    this.hasDynamicLogicPanel = false;
+                    if (
+                        !this.getMetadata().get(['entityDefs', this.scope, 'fields', this.field, 'disabled'])
+                        &&
+                        !this.getMetadata().get(['entityDefs', this.scope, 'fields', this.field, 'dynamicLogicDisabled'])
+                        &&
+                        !this.getMetadata().get(['entityDefs', this.scope, 'fields', this.field, 'layoutDetailDisabled'])
+                    ) {
+                        if (!this.getMetadata().get(['entityDefs', this.scope, 'fields', this.field, 'dynamicLogicVisibleDisabled'])) {
+                            this.model.set('dynamicLogicVisible', this.getMetadata().get(['clientDefs', this.scope, 'dynamicLogic', 'fields', this.field, 'visible']));
+                            this.createFieldView(null, 'dynamicLogicVisible', null, {
+                                view: 'views/admin/field-manager/fields/dynamic-logic-conditions',
+                                scope: this.scope
+                            });
+                            this.hasDynamicLogicPanel = true;
+                        }
+                        if (
+                            !this.getMetadata().get(['entityDefs', this.scope, 'fields', this.field, 'dynamicLogicRequiredDisabled'])
+                            &&
+                            !this.getMetadata().get(['entityDefs', this.scope, 'fields', this.field, 'readOnly'])
+                        ) {
+                            this.model.set('dynamicLogicRequired', this.getMetadata().get(['clientDefs', this.scope, 'dynamicLogic', 'fields', this.field, 'required']));
+                            this.createFieldView(null, 'dynamicLogicRequired', null, {
+                                view: 'views/admin/field-manager/fields/dynamic-logic-conditions',
+                                scope: this.scope
+                            });
+                            this.hasDynamicLogicPanel = true;
+                        }
+                        if (
+                            !this.getMetadata().get(['entityDefs', this.scope, 'fields', this.field, 'dynamicLogicReadOnlyDisabled'])
+                            &&
+                            !this.getMetadata().get(['entityDefs', this.scope, 'fields', this.field, 'readOnly'])
+                        ) {
+                            this.model.set('dynamicLogicReadOnly', this.getMetadata().get(['clientDefs', this.scope, 'dynamicLogic', 'fields', this.field, 'readOnly']));
+                            this.createFieldView(null, 'dynamicLogicReadOnly', null, {
+                                view: 'views/admin/field-manager/fields/dynamic-logic-conditions',
+                                scope: this.scope
+                            });
+                            this.hasDynamicLogicPanel = true;
+                        }
+
+                        if (
+                            ~['enum', 'array', 'multiEnum'].indexOf(this.type)
+                            &&
+                            !this.getMetadata().get(['entityDefs', this.scope, 'fields', this.field, 'dynamicLogicOptionsDisabled'])
+                            &&
+                            !this.getMetadata().get(['entityDefs', this.scope, 'fields', this.field, 'readOnly'])
+                        ) {
+                            this.model.set('dynamicLogicOptions', this.getMetadata().get(['clientDefs', this.scope, 'dynamicLogic', 'options', this.field]));
+                            this.createFieldView(null, 'dynamicLogicOptions', null, {
+                                view: 'views/admin/field-manager/fields/dynamic-logic-options',
+                                scope: this.scope
+                            });
+                            this.hasDynamicLogicPanel = true;
+                        };
+                    }
+
                     callback();
 
                 }.bind(this));
@@ -185,7 +243,7 @@ Espo.define('views/admin/field-manager/edit', ['view', 'model'], function (Dep, 
             }, this);
         },
 
-        createFieldView: function (type, name, readOnly, params) {
+        createFieldView: function (type, name, readOnly, params, callback) {
             var viewName = (params || {}).view || this.getFieldManager().getViewName(type);
             this.createView(name, viewName, {
                 model: this.model,
@@ -198,7 +256,7 @@ Espo.define('views/admin/field-manager/edit', ['view', 'model'], function (Dep, 
                 readOnly: readOnly,
                 scope: this.scope,
                 field: this.field,
-            });
+            }, callback);
             this.fieldList.push(name);
         },
 

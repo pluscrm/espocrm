@@ -1007,7 +1007,15 @@ abstract class Base
                     'key' => $key,
                     'foreignKey' => $foreignKey,
                     'nearKey' => $nearKey,
-                    'distantKey' => $distantKey,
+                    'distantKey' => $distantKey
+                );
+            case IEntity::BELONGS_TO_PARENT:
+                $key = $relationName . 'Id';
+                $typeKey = $relationName . 'Type';
+                return array(
+                    'key' => $key,
+                    'typeKey' => $typeKey,
+                    'foreignKey' => 'id'
                 );
         }
     }
