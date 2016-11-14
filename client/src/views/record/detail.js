@@ -812,7 +812,7 @@ Espo.define('views/record/detail', ['views/record/base', 'view-record-helper'], 
 
             var editAccess = this.getAcl().checkModel(this.model, 'edit', true);
 
-            if (!editAccess) {
+            if (!editAccess || this.readOnlyLocked) {
                 this.readOnly = true;
                 this.hideActionItem('edit');
                 if (this.duplicateAction) {
@@ -1027,7 +1027,8 @@ Espo.define('views/record/detail', ['views/record/base', 'view-record-helper'], 
                 type: this.type,
                 readOnly: this.readOnly,
                 inlineEditDisabled: this.inlineEditDisabled,
-                recordHelper: this.recordHelper
+                recordHelper: this.recordHelper,
+                recordViewObject: this
             });
         },
 
@@ -1044,7 +1045,8 @@ Espo.define('views/record/detail', ['views/record/base', 'view-record-helper'], 
                         model: this.model,
                         columnCount: this.columnCount
                     },
-                    recordHelper: this.recordHelper
+                    recordHelper: this.recordHelper,
+                    recordViewObject: this
                 }, callback);
             }.bind(this));
         },
@@ -1058,7 +1060,8 @@ Espo.define('views/record/detail', ['views/record/base', 'view-record-helper'], 
                 readOnly: this.readOnly,
                 type: this.type,
                 inlineEditDisabled: this.inlineEditDisabled,
-                recordHelper: this.recordHelper
+                recordHelper: this.recordHelper,
+                recordViewObject: this
             }, function (view) {
                 if (this.isRendered()) {
                     view.render();

@@ -33,6 +33,7 @@
                 "Biotechnology",
                 "Building Materials & Equipment",
                 "Chemical",
+                "Construction",
                 "Computer",
                 "Education",
                 "Electronics",
@@ -42,9 +43,12 @@
                 "Food & Beverage",
                 "Grocery",
                 "Healthcare",
+                "Hospitality",
                 "Insurance",
                 "Legal",
                 "Manufacturing",
+                "Mass Media",
+                "Marketing",
                 "Publishing",
                 "Real Estate",
                 "Service",
@@ -159,6 +163,13 @@
             "layoutMassUpdateDisabled": true,
             "layoutFiltersDisabled": true,
             "entity": "TargetList"
+        },
+        "originalLead": {
+            "type": "link",
+            "layoutMassUpdateDisabled": true,
+            "layoutListDisabled": true,
+            "readOnly": true,
+            "view": "views/fields/link-one"
         }
     },
     "links": {
@@ -198,7 +209,8 @@
         "documents": {
             "type": "hasMany",
             "entity": "Document",
-            "foreign": "accounts"
+            "foreign": "accounts",
+            "audited": true
         },
         "meetingsPrimary": {
             "type": "hasMany",
@@ -228,19 +240,22 @@
             "type": "hasChildren",
             "entity": "Meeting",
             "foreign": "parent",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "calls": {
             "type": "hasChildren",
             "entity": "Call",
             "foreign": "parent",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "tasks": {
             "type": "hasChildren",
             "entity": "Task",
             "foreign": "parent",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "emails": {
             "type": "hasChildren",
@@ -268,6 +283,11 @@
             "type": "hasMany",
             "entity": "User",
             "foreign": "accounts"
+        },
+        "originalLead": {
+            "type": "hasOne",
+            "entity": "Lead",
+            "foreign": "createdAccount"
         }
     },
     "collection": {

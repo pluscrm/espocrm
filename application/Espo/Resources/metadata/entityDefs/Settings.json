@@ -253,11 +253,13 @@
         },
         "ldapUserDefaultTeam": {
             "type": "link",
-            "tooltip": true
+            "tooltip": true,
+            "entity": "Team"
         },
         "ldapUserTeams": {
             "type": "linkMultiple",
-            "tooltip": true
+            "tooltip": true,
+            "entity": "Team"
         },
         "exportDisabled": {
             "type": "bool",
@@ -394,26 +396,19 @@
             "type": "multiEnum",
             "view": "views/settings/fields/calendar-entity-list"
         },
+        "activitiesEntityList": {
+            "type": "multiEnum",
+            "view": "views/settings/fields/activities-entity-list"
+        },
+        "historyEntityList": {
+            "type": "multiEnum",
+            "view": "views/settings/fields/activities-entity-list"
+        },
         "googleMapsApiKey": {
             "type": "varchar"
-        }
-    },
-    "links": {
-        "ldapUserDefaultTeam": {
-            "type": "belongsTo",
-            "entity": "Team"
         },
-        "ldapUserTeams": {
-            "type": "hasMany",
-            "entity": "Team",
-            "foreign": "users",
-            "additionalColumns": {
-                "role": {
-                    "type": "varchar",
-                    "len": 100
-                }
-            },
-            "layoutRelationshipsDisabled": true
+        "massEmailDisableMandatoryOptOutLink": {
+            "type": "bool"
         }
     }
 }

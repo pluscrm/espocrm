@@ -125,12 +125,21 @@ class Base
     protected function order($sortBy, $desc = false, &$result)
     {
         if (!empty($sortBy)) {
+
             $result['orderBy'] = $sortBy;
             $type = $this->getMetadata()->get(['entityDefs', $this->getEntityType(), 'fields', $sortBy, 'type']);
             if ($type === 'link') {
                 $result['orderBy'] .= 'Name';
             } else if ($type === 'linkParent') {
                 $result['orderBy'] .= 'Type';
+            } else if ($type === 'address') {
+                if (!$desc) {
+                    $orderPart = 'ASC';
+                } else {
+                    $orderPart = 'DESC';
+                }
+                $result['orderBy'] = [[$sortBy . 'Country', $orderPart], [$sortBy . 'City', $orderPart], [$sortBy . 'Street', $orderPart]];
+                return;
             } else if ($type === 'enum') {
                 $list = $this->getMetadata()->get(['entityDefs', $this->getEntityType(), 'fields', $sortBy, 'options']);
                 if ($list && is_array($list) && count($list)) {
@@ -248,18 +257,21 @@ class Base
 
         $defs = $relDefs[$link];
         if ($relationType == 'manyMany') {
-            $this->addJoin($link, $result);
+            $this->addJoin([$link, $link . 'Filter'], $result);
             $midKeys = $seed->getRelationParam($link, 'midKeys');
 
             if (!empty($midKeys)) {
                 $key = $midKeys[1];
-                $part[$link . 'Middle.' . $key] = $idsValue;
+                $part[$link . 'Filter' . 'Middle.' . $key] = $idsValue;
             }
-        } else if ($relationType== 'belongsTo') {
+        } else if ($relationType == 'belongsTo') {
             $key = $seed->getRelationParam($link, 'key');
             if (!empty($key)) {
                 $part[$key] = $idsValue;
             }
+        } else if ($relationType == 'hasOne') {
+            $this->addJoin([$link, $link . 'Filter'], $result);
+            $part[$link . 'Filter' . '.id'] = $idsValue;
         } else {
             return;
         }

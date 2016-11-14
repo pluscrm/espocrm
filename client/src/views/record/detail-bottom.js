@@ -42,7 +42,8 @@ Espo.define('views/record/detail-bottom', 'view', function (Dep) {
 
         data: function () {
             return {
-                panelList: this.panelList
+                panelList: this.panelList,
+                scope: this.scope
             };
         },
 
@@ -170,7 +171,8 @@ Espo.define('views/record/detail-bottom', 'view', function (Dep) {
                     recordHelper: this.recordHelper,
                     inlineEditDisabled: this.inlineEditDisabled,
                     readOnly: this.readOnly,
-                    disabled: p.hidden || false
+                    disabled: p.hidden || false,
+                    recordViewObject: this.recordViewObject
                 }, function (view) {
                     if ('getActionList' in view) {
                         p.actionList = this.filterActions(view.getActionList());
@@ -194,6 +196,8 @@ Espo.define('views/record/detail-bottom', 'view', function (Dep) {
             this.readOnlyLocked = this.options.readOnlyLocked || this.readOnly;
             this.readOnly = this.options.readOnly || this.readOnly;
             this.inlineEditDisabled = this.options.inlineEditDisabled || this.inlineEditDisabled;
+
+            this.recordViewObject = this.options.recordViewObject;
         },
 
         setup: function () {
